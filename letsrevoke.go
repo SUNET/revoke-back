@@ -2,44 +2,49 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 var templates = template.Must(template.ParseFiles("index.html"))
 
-type caEntry struct {
-	pub    []byte
-	key    []byte
-	issuer string
+type CaEntry struct {
+	Pub    []byte
+	Key    []byte // TODO: key is nullable blob
+	Issuer sql.NullString
 }
 
-// func readCa(db *DB) map[string]caEntry {
-// 	rows, err := db.Query("select * from ca")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	defer rows.Close()
-// 	for rows.Next() {
-// 		var sub string
-// 		var issuer sql.NullString
-// 		var pub, key []byte // TODO: key is nullable
-// 		err = rows.Scan(&sub, &pub, &key, &issuer)
-// 		if err != nil {
-// 			log.Fatal(err)
-// 		}
-// 		fmt.Println(sub)
-// 	}
-// 	if err = rows.Err(); err != nil {
-// 		log.Fatal(err)
-// 	}
-// }
+// Return map[`sub`]caEntry
+func readCa(db *sql.DB) map[string]CaEntry {
+	rows, err := db.Query("select * from ca")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	res := make(map[string]CaEntry)
+	for rows.Next() {
+		var sub string
+		c := CaEntry{}
+		err = rows.Scan(&sub, &c.Pub, &c.Key, &c.Issuer)
+		if err != nil {
+			log.Fatal(err)
+		}
+		res[sub] = c
+	}
+	if err = rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	return res
+}
 
 type Issued struct {
-	Serial    int
 	Realm     string
 	Ca_sub    string
 	Requester string
@@ -52,21 +57,23 @@ type Issued struct {
 	Usage     string
 }
 
-func readIssued(db *sql.DB) []Issued {
+// Return map[`serial`]Issued
+func readIssued(db *sql.DB) map[int]Issued {
 	rows, err := db.Query("select * from realm_signing_log")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rows.Close()
 
-	res := []Issued{}
+	res := make(map[int]Issued)
 	for rows.Next() {
+		var serial int
 		i := Issued{}
-		err = rows.Scan(&i.Serial, &i.Realm, &i.Ca_sub, &i.Requester, &i.Sub, &i.Issued, &i.Expires, &i.Csr, &i.X509, &i.Revoked, &i.Usage)
+		err = rows.Scan(&serial, &i.Realm, &i.Ca_sub, &i.Requester, &i.Sub, &i.Issued, &i.Expires, &i.Csr, &i.X509, &i.Revoked, &i.Usage)
 		if err != nil {
 			log.Fatal(err)
 		}
-		res = append(res, i)
+		res[serial] = i
 	}
 
 	if err = rows.Err(); err != nil {
@@ -79,6 +86,22 @@ func readIssued(db *sql.DB) []Issued {
 func makeHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		issued := readIssued(db)
+
+		if r.Method == "POST" {
+			ca := readCa(db)
+			r.ParseForm()
+			selected := r.Form
+			for serial, _ := range selected {
+				serialInt, _ := strconv.Atoi(serial)
+				sub := issued[serialInt].Ca_sub
+				caEntry := ca[sub]
+				pub := caEntry.Pub
+				key := caEntry.Key
+
+				fmt.Printf("%d\n%s\n%s\n", serialInt, pub, key)
+			}
+		}
+
 		err := templates.ExecuteTemplate(w, "index.html", issued)
 		if err != nil {
 			log.Fatal(err)

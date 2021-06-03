@@ -54,18 +54,18 @@
                     <th>Revoked</th>
                 </tr>
 
-                {{ range . }}
+                {{ range $serial, $i := . }}
                 <tr>
-                    <td><input type="checkbox" name={{ .Serial }}></input></td>
-                    <td>{{ .Serial }}</td>
-                    <td>{{ .Realm }}</td>
-                    <td>{{ .Ca_sub }}</td>
-                    <td>{{ .Requester }}</td>
-                    <td>{{ .Sub }}</td>
-                    <td>{{ .Issued }}</td>
-                    <td>{{ .Expires }}</td>
+                    <td><input type="checkbox" name={{ $serial }}></input></td>
+                    <td>{{ $serial }}</td>
+                    <td>{{ $i.Realm }}</td>
+                    <td>{{ $i.Ca_sub }}</td>
+                    <td>{{ $i.Requester }}</td>
+                    <td>{{ $i.Sub }}</td>
+                    <td>{{ $i.Issued }}</td>
+                    <td>{{ $i.Expires }}</td>
 
-                    {{ if .Revoked.Valid }}
+                    {{ if $i.Revoked.Valid }}
                     <td>Yes</td>
                     {{ else }}
                     <td>No</td>
