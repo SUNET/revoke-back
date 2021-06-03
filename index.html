@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+    <style>
+        #items {
+            font-family: Arial, Helvetica, sans-serif;
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        #items td, #items th {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        #items tr:nth-child(even){background-color: #f2f2f2;}
+
+        #items tr:hover {background-color: #ddd;}
+
+        #items th {
+            padding-top: 12px;
+            padding-bottom: 12px;
+            text-align: left;
+            background-color: darkgrey;
+            color: white;
+        }
+
+        .button {
+            font-family: Arial, Helvetica, sans-serif;	
+            background-color: #f44336;
+            border: none;
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 20px;
+            margin: 4px 2px;
+            cursor: pointer;
+        }
+    </style>
+
+    <body>
+        <form action="/" method="POST">
+            <button class="button" type="submit">Revoke!</button>
+            <table id="items">
+                <tr>
+                    <th>Select</th>
+                    <th>Serial</th>
+                    <th>Realm</th>
+                    <th>CA</th>
+                    <th>Requester</th>
+                    <th>SUB</th>
+                    <th>Issued</th>
+                    <th>Expires</th>
+                    <th>Revoked</th>
+                </tr>
+
+                {{ range . }}
+                <tr>
+                    <td><input type="checkbox" name={{ .Serial }}></input></td>
+                    <td>{{ .Serial }}</td>
+                    <td>{{ .Realm }}</td>
+                    <td>{{ .Ca_sub }}</td>
+                    <td>{{ .Requester }}</td>
+                    <td>{{ .Sub }}</td>
+                    <td>{{ .Issued }}</td>
+                    <td>{{ .Expires }}</td>
+
+                    {{ if .Revoked.Valid }}
+                    <td>Yes</td>
+                    {{ else }}
+                    <td>No</td>
+                    {{ end }}
+                </tr>
+                {{ end }}
+            </table>
+        </form>
+    </body>
+</html>
