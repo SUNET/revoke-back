@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -57,6 +59,11 @@ type Issued struct {
 	Usage     string
 }
 
+func (i Issued) ExpiresFormatted() string {
+	d := strings.Split(i.Expires, "-")
+	return d[0][2:] + d[1] + d[2] + "000000Z" // Todo: UTC?
+}
+
 // Return map[`serial`]Issued
 func readIssued(db *sql.DB) map[int]Issued {
 	rows, err := db.Query("select * from realm_signing_log")
@@ -88,17 +95,17 @@ func makeHandler(db *sql.DB) http.HandlerFunc {
 		issued := readIssued(db)
 
 		if r.Method == "POST" {
-			ca := readCa(db)
 			r.ParseForm()
-			selected := r.Form
-			for serial, _ := range selected {
-				serialInt, _ := strconv.Atoi(serial)
-				sub := issued[serialInt].Ca_sub
-				caEntry := ca[sub]
-				pub := caEntry.Pub
-				key := caEntry.Key
-
-				fmt.Printf("%d\n%s\n%s\n", serialInt, pub, key)
+			revokedSerials := r.Form
+			for serial, i := range issued {
+				_, revoked := revokedSerials[strconv.Itoa(serial)]
+				revokeStatus := "V"
+				revokeDate := ""
+				if revoked {
+					revokeStatus = "R"
+					revokeDate = time.Now().UTC().Format("060102150405Z")
+				}
+				fmt.Printf("%s\t%s\t%s\t%d\tunknown\t/%s\n", revokeStatus, i.ExpiresFormatted(), revokeDate, serial, i.Sub)
 			}
 		}
 
