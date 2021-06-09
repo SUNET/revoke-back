@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -90,11 +91,21 @@ func readIssued(db *sql.DB) map[int]Issued {
 	return res
 }
 
+func check(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func makeHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		issued := readIssued(db)
 
 		if r.Method == "POST" {
+			f, err := os.Create("index.txt")
+			check(err)
+			defer f.Close()
+
 			r.ParseForm()
 			revokedSerials := r.Form
 			for serial, i := range issued {
@@ -105,7 +116,7 @@ func makeHandler(db *sql.DB) http.HandlerFunc {
 					revokeStatus = "R"
 					revokeDate = time.Now().UTC().Format("060102150405Z")
 				}
-				fmt.Printf("%s\t%s\t%s\t%d\tunknown\t/%s\n", revokeStatus, i.ExpiresFormatted(), revokeDate, serial, i.Sub)
+				fmt.Fprintf(f, "%s\t%s\t%s\t%d\tunknown\t/%s\n", revokeStatus, i.ExpiresFormatted(), revokeDate, serial, i.Sub)
 			}
 		}
 
