@@ -14,6 +14,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+func check(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 var templates = template.Must(template.ParseFiles("index.html"))
 
 type CaEntry struct {
@@ -25,9 +31,7 @@ type CaEntry struct {
 // Return map[`sub`]caEntry
 func readCa(db *sql.DB) map[string]CaEntry {
 	rows, err := db.Query("select * from ca")
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 	defer rows.Close()
 
 	res := make(map[string]CaEntry)
@@ -35,9 +39,7 @@ func readCa(db *sql.DB) map[string]CaEntry {
 		var sub string
 		c := CaEntry{}
 		err = rows.Scan(&sub, &c.Pub, &c.Key, &c.Issuer)
-		if err != nil {
-			log.Fatal(err)
-		}
+		check(err)
 		res[sub] = c
 	}
 	if err = rows.Err(); err != nil {
@@ -68,9 +70,7 @@ func (i Issued) ExpiresFormatted() string {
 // Return map[`serial`]Issued
 func readIssued(db *sql.DB) map[int]Issued {
 	rows, err := db.Query("select * from realm_signing_log")
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 	defer rows.Close()
 
 	res := make(map[int]Issued)
@@ -78,9 +78,7 @@ func readIssued(db *sql.DB) map[int]Issued {
 		var serial int
 		i := Issued{}
 		err = rows.Scan(&serial, &i.Realm, &i.Ca_sub, &i.Requester, &i.Sub, &i.Issued, &i.Expires, &i.Csr, &i.X509, &i.Revoked, &i.Usage)
-		if err != nil {
-			log.Fatal(err)
-		}
+		check(err)
 		res[serial] = i
 	}
 
@@ -89,12 +87,6 @@ func readIssued(db *sql.DB) map[int]Issued {
 	}
 
 	return res
-}
-
-func check(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 func makeHandler(db *sql.DB) http.HandlerFunc {
@@ -121,17 +113,13 @@ func makeHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		err := templates.ExecuteTemplate(w, "index.html", issued)
-		if err != nil {
-			log.Fatal(err)
-		}
+		check(err)
 	}
 }
 
 func main() {
 	db, err := sql.Open("sqlite3", "./letswifi-dev.sqlite")
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 	defer db.Close()
 
 	http.HandleFunc("/", makeHandler(db))
