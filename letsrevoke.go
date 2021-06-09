@@ -28,6 +28,24 @@ type CaEntry struct {
 	Issuer sql.NullString
 }
 
+type Issued struct {
+	Realm     string
+	Ca_sub    string
+	Requester string
+	Sub       string
+	Issued    string
+	Expires   string
+	Csr       string
+	X509      sql.NullString
+	Revoked   sql.NullString
+	Usage     string
+}
+
+func (i Issued) ExpiresFormatted() string {
+	d := strings.Split(i.Expires, "-")
+	return d[0][2:] + d[1] + d[2] + "000000Z" // Todo: UTC?
+}
+
 // Return map[`sub`]caEntry
 func readCa(db *sql.DB) map[string]CaEntry {
 	rows, err := db.Query("select * from ca")
@@ -47,24 +65,6 @@ func readCa(db *sql.DB) map[string]CaEntry {
 	}
 
 	return res
-}
-
-type Issued struct {
-	Realm     string
-	Ca_sub    string
-	Requester string
-	Sub       string
-	Issued    string
-	Expires   string
-	Csr       string
-	X509      sql.NullString
-	Revoked   sql.NullString
-	Usage     string
-}
-
-func (i Issued) ExpiresFormatted() string {
-	d := strings.Split(i.Expires, "-")
-	return d[0][2:] + d[1] + d[2] + "000000Z" // Todo: UTC?
 }
 
 // Return map[`serial`]Issued
