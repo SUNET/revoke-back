@@ -14,6 +14,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const (
+	layoutISO  = "2006-01-02"
+	layoutOSSL = "060102150405Z"
+)
+
 func check(err error) {
 	if err != nil {
 		log.Fatal(err)
@@ -110,8 +115,8 @@ func makeHandler(db *sql.DB) http.HandlerFunc {
 			}
 
 			revokeTime := time.Now().UTC()
-			revokeDateOSSL := revokeTime.Format("060102150405Z")
-			revokeDateISO := revokeTime.Format("2006-01-02")
+			revokeDateOSSL := revokeTime.Format(layoutOSSL)
+			revokeDateISO := revokeTime.Format(layoutISO)
 
 			// Write index.txt
 			for serial, i := range issued {
