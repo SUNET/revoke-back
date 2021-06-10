@@ -41,7 +41,7 @@ type Issued struct {
 	Usage     string
 }
 
-func (i Issued) ExpiresFormatted() string {
+func (i Issued) ExpiresOSSL() string {
 	d := strings.Split(i.Expires, "-")
 	return d[0][2:] + d[1] + d[2] + "000000Z" // Todo: UTC?
 }
@@ -97,18 +97,25 @@ func makeHandler(db *sql.DB) http.HandlerFunc {
 			f, err := os.Create("index.txt")
 			check(err)
 			defer f.Close()
+			update, err := db.Prepare("update realm_signing_log set revoked = ? where serial = ?")
+			check(err)
+			defer update.Close()
 
 			r.ParseForm()
 			revokedSerials := r.Form
 			for serial, i := range issued {
 				_, revoked := revokedSerials[strconv.Itoa(serial)]
 				revokeStatus := "V"
-				revokeDate := ""
+				revokeDateOSSL := ""
 				if revoked {
 					revokeStatus = "R"
-					revokeDate = time.Now().UTC().Format("060102150405Z")
+					revokeTime := time.Now().UTC()
+					revokeDateOSSL = revokeTime.Format("060102150405Z")
+					revokeDateISO := revokeTime.Format("2006-01-02")
+					_, err := update.Exec(revokeDateISO, serial)
+					check(err)
 				}
-				fmt.Fprintf(f, "%s\t%s\t%s\t%d\tunknown\t/%s\n", revokeStatus, i.ExpiresFormatted(), revokeDate, serial, i.Sub)
+				fmt.Fprintf(f, "%s\t%s\t%s\t%d\tunknown\t/%s\n", revokeStatus, i.ExpiresOSSL(), revokeDateOSSL, serial, i.Sub)
 			}
 		}
 
