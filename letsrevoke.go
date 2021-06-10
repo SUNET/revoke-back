@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -29,21 +28,18 @@ func check(err error) {
 var templates = template.Must(template.ParseFiles("index.html"))
 
 type Issued struct {
-	Realm     string
-	Ca_sub    string
-	Requester string
-	Sub       string
-	Issued    string
-	Expires   string
-	Csr       string
-	X509      sql.NullString
-	Revoked   sql.NullString
-	Usage     string
-}
-
-func (i Issued) ExpiresOSSL() string {
-	d := strings.Split(i.Expires, "-")
-	return d[0][2:] + d[1] + d[2] + "000000Z" // TODO: UTC?
+	Realm       string
+	Ca_sub      string
+	Requester   string
+	Sub         string
+	Issued      string
+	Expires     string
+	ExpiresTime time.Time
+	Csr         string
+	X509        sql.NullString
+	Revoked     sql.NullString
+	RevokedTime time.Time
+	Usage       string
 }
 
 // Return map[`serial`]Issued
@@ -58,6 +54,12 @@ func readIssued(db *sql.DB) map[int]*Issued {
 		i := Issued{}
 		err = rows.Scan(&serial, &i.Realm, &i.Ca_sub, &i.Requester, &i.Sub, &i.Issued, &i.Expires, &i.Csr, &i.X509, &i.Revoked, &i.Usage)
 		check(err)
+		i.ExpiresTime, err = time.Parse(layoutISO, i.Expires) // TODO: Should this really be considered as midnight UTC?
+		check(err)
+		if i.Revoked.Valid {
+			i.RevokedTime, err = time.Parse(layoutOSSL, i.Revoked.String)
+			check(err)
+		}
 		res[serial] = &i
 	}
 
@@ -90,31 +92,31 @@ func makeHandler(db *sql.DB) http.HandlerFunc {
 				revokedSerials[serialInt] = true
 			}
 
-			revokeTime := time.Now().UTC()
-			revokeDateOSSL := revokeTime.Format(layoutOSSL)
-			revokeDateISO := revokeTime.Format(layoutISO)
-
-			// Write index.txt
-			for serial, i := range issued {
-				_, revoked := revokedSerials[serial]
-				status := "V"
-				date := ""
-				if revoked {
-					status = "R"
-					date = revokeDateOSSL
-				}
-				fmt.Fprintf(bw, "%s\t%s\t%s\t%d\tunknown\t/%s\n", status, i.ExpiresOSSL(), date, serial, i.Sub)
-			}
-			bw.Flush()
+			now := time.Now().UTC()
+			nowOSSL := now.Format(layoutOSSL)
 
 			// Update database and structs
 			for serial, _ := range revokedSerials {
-				_, err := update.Exec(revokeDateISO, serial)
+				// TODO: Updates even if already revoked – desired behaviour?
+				_, err := update.Exec(nowOSSL, serial)
 				check(err)
 				i := issued[serial]
+				i.RevokedTime = now
 				i.Revoked.Valid = true
-				i.Revoked.String = revokeDateISO
+				i.Revoked.String = nowOSSL
 			}
+
+			// Write index.txt
+			for serial, i := range issued {
+				status := "V"
+				date := ""
+				if i.Revoked.Valid {
+					status = "R"
+					date = i.RevokedTime.Format(layoutOSSL)
+				}
+				fmt.Fprintf(bw, "%s\t%s\t%s\t%d\tunknown\t/%s\n", status, i.ExpiresTime.Format(layoutOSSL), date, serial, i.Sub)
+			}
+			bw.Flush()
 		}
 
 		err := templates.ExecuteTemplate(w, "index.html", issued)
