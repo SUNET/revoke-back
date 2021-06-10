@@ -27,12 +27,6 @@ func check(err error) {
 
 var templates = template.Must(template.ParseFiles("index.html"))
 
-type CaEntry struct {
-	Pub    []byte
-	Key    []byte // TODO: key is nullable blob
-	Issuer sql.NullString
-}
-
 type Issued struct {
 	Realm     string
 	Ca_sub    string
@@ -49,27 +43,6 @@ type Issued struct {
 func (i Issued) ExpiresOSSL() string {
 	d := strings.Split(i.Expires, "-")
 	return d[0][2:] + d[1] + d[2] + "000000Z" // TODO: UTC?
-}
-
-// Return map[`sub`]caEntry
-func readCa(db *sql.DB) map[string]*CaEntry {
-	rows, err := db.Query("select * from ca")
-	check(err)
-	defer rows.Close()
-
-	res := make(map[string]*CaEntry)
-	for rows.Next() {
-		var sub string
-		c := CaEntry{}
-		err = rows.Scan(&sub, &c.Pub, &c.Key, &c.Issuer)
-		check(err)
-		res[sub] = &c
-	}
-	if err = rows.Err(); err != nil {
-		log.Fatal(err)
-	}
-
-	return res
 }
 
 // Return map[`serial`]Issued
