@@ -19,6 +19,7 @@ const (
 	layoutOSSL = "060102150405Z"
 )
 
+// TODO: Error handling
 func check(err error) {
 	if err != nil {
 		log.Fatal(err)
