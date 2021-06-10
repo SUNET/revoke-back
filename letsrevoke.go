@@ -123,5 +123,5 @@ func main() {
 	defer db.Close()
 
 	http.HandleFunc("/", makeHandler(db))
-	log.Fatal(http.ListenAndServe("localhost:8080", nil))
+	log.Fatal(http.ListenAndServe("localhost:8888", nil))
 }
