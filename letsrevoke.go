@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"fmt"
 	"html/template"
@@ -75,6 +76,8 @@ func makeHandler(db *sql.DB) http.HandlerFunc {
 			f, err := os.Create("index.txt")
 			check(err)
 			defer f.Close()
+			bw := bufio.NewWriter(f)
+
 			update, err := db.Prepare("update realm_signing_log set revoked = ? where serial = ?")
 			check(err)
 			defer update.Close()
@@ -100,8 +103,9 @@ func makeHandler(db *sql.DB) http.HandlerFunc {
 					status = "R"
 					date = revokeDateOSSL
 				}
-				fmt.Fprintf(f, "%s\t%s\t%s\t%d\tunknown\t/%s\n", status, i.ExpiresOSSL(), date, serial, i.Sub)
+				fmt.Fprintf(bw, "%s\t%s\t%s\t%d\tunknown\t/%s\n", status, i.ExpiresOSSL(), date, serial, i.Sub)
 			}
+			bw.Flush()
 
 			// Update database and structs
 			for serial, _ := range revokedSerials {
