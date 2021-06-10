@@ -48,7 +48,7 @@ type Issued struct {
 
 func (i Issued) ExpiresOSSL() string {
 	d := strings.Split(i.Expires, "-")
-	return d[0][2:] + d[1] + d[2] + "000000Z" // Todo: UTC?
+	return d[0][2:] + d[1] + d[2] + "000000Z" // TODO: UTC?
 }
 
 // Return map[`sub`]caEntry
