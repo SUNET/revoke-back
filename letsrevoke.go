@@ -47,18 +47,18 @@ func (i Issued) ExpiresOSSL() string {
 }
 
 // Return map[`sub`]caEntry
-func readCa(db *sql.DB) map[string]CaEntry {
+func readCa(db *sql.DB) map[string]*CaEntry {
 	rows, err := db.Query("select * from ca")
 	check(err)
 	defer rows.Close()
 
-	res := make(map[string]CaEntry)
+	res := make(map[string]*CaEntry)
 	for rows.Next() {
 		var sub string
 		c := CaEntry{}
 		err = rows.Scan(&sub, &c.Pub, &c.Key, &c.Issuer)
 		check(err)
-		res[sub] = c
+		res[sub] = &c
 	}
 	if err = rows.Err(); err != nil {
 		log.Fatal(err)
@@ -68,18 +68,18 @@ func readCa(db *sql.DB) map[string]CaEntry {
 }
 
 // Return map[`serial`]Issued
-func readIssued(db *sql.DB) map[int]Issued {
+func readIssued(db *sql.DB) map[int]*Issued {
 	rows, err := db.Query("select * from realm_signing_log")
 	check(err)
 	defer rows.Close()
 
-	res := make(map[int]Issued)
+	res := make(map[int]*Issued)
 	for rows.Next() {
 		var serial int
 		i := Issued{}
 		err = rows.Scan(&serial, &i.Realm, &i.Ca_sub, &i.Requester, &i.Sub, &i.Issued, &i.Expires, &i.Csr, &i.X509, &i.Revoked, &i.Usage)
 		check(err)
-		res[serial] = i
+		res[serial] = &i
 	}
 
 	if err = rows.Err(); err != nil {
@@ -112,8 +112,10 @@ func makeHandler(db *sql.DB) http.HandlerFunc {
 					revokeTime := time.Now().UTC()
 					revokeDateOSSL = revokeTime.Format("060102150405Z")
 					revokeDateISO := revokeTime.Format("2006-01-02")
-					_, err := update.Exec(revokeDateISO, serial)
+					_, err := update.Exec(revokeDateISO, serial) // TODO: Only update new revocations
 					check(err)
+					i.Revoked.Valid = true
+					i.Revoked.String = revokeDateISO
 				}
 				fmt.Fprintf(f, "%s\t%s\t%s\t%d\tunknown\t/%s\n", revokeStatus, i.ExpiresOSSL(), revokeDateOSSL, serial, i.Sub)
 			}
