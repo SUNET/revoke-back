@@ -55,7 +55,11 @@ func readIssued(db *sql.DB) map[int]*Issued {
 		i := Issued{}
 		err = rows.Scan(&serial, &i.Realm, &i.Ca_sub, &i.Requester, &i.Sub, &i.Issued, &i.Expires, &i.Csr, &i.X509, &i.Revoked, &i.Usage)
 		check(err)
-		i.ExpiresTime, err = time.Parse(layoutISO, i.Expires) // TODO: Should this really be considered as midnight UTC?
+		// TODO: Expiration time is currently read (and output to OpenSSL) as
+		// midnight UTC. Exact time is defined in the certificate, but not in
+		// the database. Could read from certificate, but certificate is
+		// nullable in database.
+		i.ExpiresTime, err = time.Parse(layoutISO, i.Expires)
 		check(err)
 		if i.Revoked.Valid {
 			i.RevokedTime, err = time.Parse(layoutOSSL, i.Revoked.String)
