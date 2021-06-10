@@ -98,10 +98,16 @@ func makeHandler(db *sql.DB) http.HandlerFunc {
 
 			// Update database and structs
 			for serial, _ := range revokedSerials {
-				// TODO: Updates even if already revoked – desired behaviour?
+				i := issued[serial]
+
+				// Do not update revocation date if already revoked
+				if i.Revoked.Valid {
+					continue
+				}
+
 				_, err := update.Exec(nowOSSL, serial)
 				check(err)
-				i := issued[serial]
+
 				i.RevokedTime = now
 				i.Revoked.Valid = true
 				i.Revoked.String = nowOSSL
