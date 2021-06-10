@@ -102,22 +102,36 @@ func makeHandler(db *sql.DB) http.HandlerFunc {
 			defer update.Close()
 
 			r.ParseForm()
-			revokedSerials := r.Form
+			revokedSerials := make(map[int]bool)
+			for serial, _ := range r.Form {
+				serialInt, err := strconv.Atoi(serial)
+				check(err)
+				revokedSerials[serialInt] = true
+			}
+
+			revokeTime := time.Now().UTC()
+			revokeDateOSSL := revokeTime.Format("060102150405Z")
+			revokeDateISO := revokeTime.Format("2006-01-02")
+
+			// Write index.txt
 			for serial, i := range issued {
-				_, revoked := revokedSerials[strconv.Itoa(serial)]
-				revokeStatus := "V"
-				revokeDateOSSL := ""
+				_, revoked := revokedSerials[serial]
+				status := "V"
+				date := ""
 				if revoked {
-					revokeStatus = "R"
-					revokeTime := time.Now().UTC()
-					revokeDateOSSL = revokeTime.Format("060102150405Z")
-					revokeDateISO := revokeTime.Format("2006-01-02")
-					_, err := update.Exec(revokeDateISO, serial) // TODO: Only update new revocations
-					check(err)
-					i.Revoked.Valid = true
-					i.Revoked.String = revokeDateISO
+					status = "R"
+					date = revokeDateOSSL
 				}
-				fmt.Fprintf(f, "%s\t%s\t%s\t%d\tunknown\t/%s\n", revokeStatus, i.ExpiresOSSL(), revokeDateOSSL, serial, i.Sub)
+				fmt.Fprintf(f, "%s\t%s\t%s\t%d\tunknown\t/%s\n", status, i.ExpiresOSSL(), date, serial, i.Sub)
+			}
+
+			// Update database and structs
+			for serial, _ := range revokedSerials {
+				_, err := update.Exec(revokeDateISO, serial)
+				check(err)
+				i := issued[serial]
+				i.Revoked.Valid = true
+				i.Revoked.String = revokeDateISO
 			}
 		}
 
