@@ -1,13 +1,13 @@
 /*
 API specification
 
-	URL: http://localhost:8888/api/v1.0/noauth
+	URL: http://localhost:8888/api/v0/noauth
 	Method: GET
 	Body: None
 	Response body: Array of certs (all)
 	Side effect: None
 
-	URL: http://localhost:8888/api/v1.0/noauth/$SERIAL
+	URL: http://localhost:8888/api/v0/noauth/$SERIAL
 	Method: PUT
 	Body: None
 	Response body: {
@@ -324,8 +324,8 @@ func main() {
 	}
 
 	go func() {
-		http.Handle("/api/v1.0/noauth", makeGETHandler(db))
-		http.Handle("/api/v1.0/noauth/", makePUTHandler(db))
+		http.Handle("/api/v0/noauth", makeGETHandler(db))
+		http.Handle("/api/v0/noauth/", makePUTHandler(db))
 		log.Fatal(http.ListenAndServe("localhost:8888", nil))
 	}()
 
