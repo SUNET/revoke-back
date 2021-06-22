@@ -1,7 +1,7 @@
 /*
 API specification
 
-	URL: http://localhost:8888/api/v1.0/noauth/
+	URL: http://localhost:8888/api/v1.0/noauth
 	Method: GET
 	Body: None
 	Response body: Array of certs (all)
@@ -39,38 +39,6 @@ const (
 	OSSL_INDEX = "index.txt"
 )
 
-// Internal server error
-func checkInternal(err error, w http.ResponseWriter) bool {
-	if err != nil {
-		log.Print(err)
-		if w != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		return true
-	}
-	return false
-}
-
-// Fatal internal server error
-func checkFatal(err error, w http.ResponseWriter) {
-	if err != nil {
-		log.Fatal(err)
-		if w != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-	}
-}
-
-// Bad request
-func checkRequest(err error, w http.ResponseWriter) bool {
-	if err != nil {
-		log.Print(err)
-		w.WriteHeader(http.StatusBadRequest)
-		return true
-	}
-	return false
-}
-
 // Corresponding 1:1 to realm_signing_log
 type cert struct {
 	serial      int
@@ -103,9 +71,11 @@ type jsonCert struct {
 	Usage     string `json:"usage"`
 }
 
-func readSigningLog(db *sql.DB, w http.ResponseWriter) certs {
+func readSigningLog(db *sql.DB) (certs, error) {
 	rows, err := db.Query("select * from realm_signing_log")
-	checkFatal(err, w)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 
 	var res []*cert
@@ -124,27 +94,37 @@ func readSigningLog(db *sql.DB, w http.ResponseWriter) certs {
 			&i.revoked,
 			&i.usage,
 		)
-		checkFatal(err, w)
+		if err != nil {
+			return nil, err
+		}
 
 		// TODO: Issued and expiration time is currently read (and output to
 		// OpenSSL) as midnight UTC. Exact time is defined in the certificate,
 		// but not in the database. Could read from certificate, but certificate
 		// is nullable in database.
 		i.expiresTime, err = time.Parse(layoutISO, i.expires)
-		checkFatal(err, w)
+		if err != nil {
+			return nil, err
+		}
+
 		if i.revoked.Valid {
 			i.revokedTime, err = time.Parse(layoutISO, i.revoked.String)
-			checkFatal(err, w)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		res = append(res, &i)
 	}
-	checkFatal(rows.Err(), w)
 
-	return res
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
-func (certs certs) toJSON() []byte {
+func (certs certs) toJSON() ([]byte, error) {
 	jsonData := make([]*jsonCert, 0, len(certs))
 	for _, c := range certs {
 		j := jsonCert{
@@ -167,15 +147,17 @@ func (certs certs) toJSON() []byte {
 	}
 
 	json, err := json.Marshal(jsonData)
-	checkFatal(err, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	return json
+	return json, nil
 }
 
-func (certs certs) writeOCSPIndex(w http.ResponseWriter) {
+func (certs certs) writeOCSPIndex() error {
 	f, err := os.Create(OSSL_INDEX)
-	if checkInternal(err, w) {
-		return
+	if err != nil {
+		return err
 	}
 	defer f.Close()
 	bw := bufio.NewWriter(f)
@@ -194,47 +176,89 @@ func (certs certs) writeOCSPIndex(w http.ResponseWriter) {
 			c.serial,
 			c.sub)
 	}
-	bw.Flush()
+	return bw.Flush()
 }
 
-func makeGETHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+type requestError struct {
+	msg string
+}
+
+func (e requestError) Error() string {
+	return fmt.Sprintf("Bad request: %s", e.msg)
+}
+
+func makeGETHandler(db *sql.DB) errHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		if r.Method != "GET" {
+			return requestError{"Wrong method"}
+		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(readSigningLog(db, w).toJSON())
+
+		certs, err := readSigningLog(db)
+		if err != nil {
+			return err
+		}
+		json, err := certs.toJSON()
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(json)
+		return err
 	}
 }
 
-func makePUTHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func makePUTHandler(db *sql.DB) errHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		switch r.Method {
+		case "OPTIONS":
+			w.Header().Set("Access-Control-Allow-Methods", "GET, PUT")
+			w.WriteHeader(http.StatusNoContent)
+			return nil
+		case "PUT":
+			w.Header().Set("Content-Type", "application/json")
+		default:
+			return requestError{"Wrong method"}
+		}
+
 		serialStr := path.Base(r.URL.Path)
 		serial, err := strconv.Atoi(serialStr)
-		if checkRequest(err, w) {
-			return
+		if err != nil {
+			return requestError{"Bad URL"}
 		}
 
 		// Get row with serial number `serial`
 		query, err := db.Prepare("select revoked from realm_signing_log where serial = ?")
-		checkFatal(err, w)
+		if err != nil {
+			return err
+		}
 		defer query.Close()
+
 		rows, err := query.Query(serial)
-		checkFatal(err, w)
+		if err != nil {
+			return err
+		}
 		defer rows.Close()
 
 		// Get revoked status
 		var revoked sql.NullString
-		rows.Next()
+		if !rows.Next() {
+			if rows.Err() != nil {
+				return rows.Err()
+			}
+			return requestError{"Invalid serial number"}
+		}
 		err = rows.Scan(&revoked)
-		if checkRequest(err, w) {
-			return
+		if err != nil {
+			return err
 		}
 
 		// Make sure there are no more rows with the same serial number
-		// TODO: Handle multiple CAs
 		if rows.Next() {
-			checkInternal(fmt.Errorf("Multiple rows returned for serial %d", serial), w)
-			return
+			if rows.Err() != nil {
+				return rows.Err()
+			}
+			return fmt.Errorf("Multiple rows returned for serial %d", serial)
 		}
-		checkFatal(err, w)
 
 		// If it is already revoked, do nothing. Else, set the revocation time to now.
 		var status string
@@ -242,56 +266,66 @@ func makePUTHandler(db *sql.DB) http.HandlerFunc {
 			status = "unchanged"
 		} else {
 			status = "revoked"
-			now := time.Now().Format(layoutISO) // TODO: Time
+			now := time.Now().Format(layoutISO)
+
 			update, err := db.Prepare("update realm_signing_log set revoked = ? where serial = ?")
-			checkFatal(err, w)
+			if err != nil {
+				return err
+			}
 			defer update.Close()
+
 			_, err = update.Exec(now, serial)
-			if checkInternal(err, w) {
-				return
+			if err != nil {
+				return err
 			}
 		}
 
 		body := make(map[int]string)
 		body[serial] = status
 		json, err := json.Marshal(body)
-		if checkInternal(err, w) {
-			return
+		if err != nil {
+			return err
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(json)
-
-		readSigningLog(db, w).writeOCSPIndex(w)
+		_, err = w.Write(json)
+		return err
 	}
 }
 
-func makeAPIHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		switch r.Method {
-		case "GET":
-			makeGETHandler(db)(w, r)
-		case "PUT":
-			makePUTHandler(db)(w, r)
-		case "OPTIONS":
-			w.Header().Set("Access-Control-Allow-Methods", "GET, PUT")
-			w.WriteHeader(http.StatusNoContent)
-		default:
-			log.Printf("Method %s not implemented", r.Method)
+type errHandler func(w http.ResponseWriter, r *http.Request) error
+
+func (fn errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if err := fn(w, r); err != nil {
+		if _, ok := err.(requestError); ok {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func main() {
 	db, err := sql.Open("sqlite3", "./letswifi-dev.sqlite")
-	checkFatal(err, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer db.Close()
 
-	readSigningLog(db, nil).writeOCSPIndex(nil)
+	certs, err := readSigningLog(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = certs.writeOCSPIndex()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	go func() {
-		http.HandleFunc("/api/v1.0/noauth/", makeAPIHandler(db))
+		http.Handle("/api/v1.0/noauth", makeGETHandler(db))
+		http.Handle("/api/v1.0/noauth/", makePUTHandler(db))
 		log.Fatal(http.ListenAndServe("localhost:8888", nil))
 	}()
 
