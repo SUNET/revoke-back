@@ -30,17 +30,25 @@ type filter struct {
 	value string
 }
 
+func in(x string, s []string) bool {
+	for _, y := range s {
+		if x == y {
+			return true
+		}
+	}
+	return false
+}
+
 func readSigningLog(db *sql.DB, f *filter) (certs, error) {
 	var rows *sql.Rows
 	var err error
 	if f != nil {
-		var stmt *sql.Stmt
-		switch f.field {
-		case "sub":
-			stmt, err = db.Prepare("select * from realm_signing_log where instr(sub, ?) > 0 order by serial")
-		default:
+		// NOTE: Redundant sanitation of f.field, also done by the caller.
+		if !in(f.field, []string{"sub"}) {
 			return nil, err
 		}
+		var stmt *sql.Stmt
+		stmt, err = db.Prepare(fmt.Sprintf("select * from realm_signing_log where instr(%s, ?) > 0 order by serial", f.field))
 		if err != nil {
 			return nil, err
 		}

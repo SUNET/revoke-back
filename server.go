@@ -76,6 +76,9 @@ func (certs certs) toJSON() ([]byte, error) {
 }
 
 func makeGETHandler(db *sql.DB) errHandler {
+	var filterFields = map[string]string{
+		"subject": "sub",
+	}
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "GET" {
 			return requestError{"Wrong method"}
@@ -84,8 +87,10 @@ func makeGETHandler(db *sql.DB) errHandler {
 
 		var f *filter = nil
 		q := r.URL.Query()
-		if v := q.Get("filter[subject]"); v != "" {
-			f = &filter{"sub", v}
+		for apiKey, dbKey := range filterFields {
+			if v := q.Get(fmt.Sprintf("filter[%s]", apiKey)); v != "" {
+				f = &filter{dbKey, v}
+			}
 		}
 
 		certs, err := readSigningLog(db, f)
