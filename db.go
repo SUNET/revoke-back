@@ -26,7 +26,7 @@ type cert struct {
 type certs []*cert
 
 func readSigningLog(db *sql.DB) (certs, error) {
-	rows, err := db.Query("select * from realm_signing_log")
+	rows, err := db.Query("select * from realm_signing_log order by serial")
 	if err != nil {
 		return nil, err
 	}
