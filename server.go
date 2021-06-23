@@ -32,6 +32,7 @@ func (fn errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (certs certs) toJSON() ([]byte, error) {
+	// TODO: Some of these fields are unused
 	type jsonCert struct {
 		Serial    int    `json:"serial"`
 		Realm     string `json:"realm"`
