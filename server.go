@@ -82,7 +82,13 @@ func makeGETHandler(db *sql.DB) errHandler {
 		}
 		w.Header().Set("Content-Type", "application/json")
 
-		certs, err := readSigningLog(db)
+		var f *filter = nil
+		q := r.URL.Query()
+		if v := q.Get("filter[subject]"); v != "" {
+			f = &filter{"sub", v}
+		}
+
+		certs, err := readSigningLog(db, f)
 		if err != nil {
 			return err
 		}

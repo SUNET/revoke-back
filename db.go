@@ -25,10 +25,29 @@ type cert struct {
 
 type certs []*cert
 
-func readSigningLog(db *sql.DB) (certs, error) {
-	rows, err := db.Query("select * from realm_signing_log order by serial")
-	if err != nil {
-		return nil, err
+type filter struct {
+	field string
+	value string
+}
+
+func readSigningLog(db *sql.DB, f *filter) (certs, error) {
+	var rows *sql.Rows
+	var err error
+	if f != nil {
+		var stmt *sql.Stmt
+		switch f.field {
+		case "sub":
+			stmt, err = db.Prepare("select * from realm_signing_log where instr(sub, ?) > 0 order by serial")
+		default:
+			return nil, err
+		}
+		if err != nil {
+			return nil, err
+		}
+		defer stmt.Close()
+		rows, err = stmt.Query(f.value)
+	} else {
+		rows, err = db.Query("select * from realm_signing_log order by serial")
 	}
 	defer rows.Close()
 

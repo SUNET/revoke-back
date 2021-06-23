@@ -47,6 +47,19 @@ func TestMain(m *testing.M) {
 			NULL,
 			"usage_1"
 		);
+		INSERT INTO realm_signing_log VALUES (
+			2,
+			"realm_2",
+			"ca_sub_2",
+			"requester_2",
+			"sub_2",
+			"2020-06-23",
+			"2022-06-23",
+			"csr_2",
+			"x509_2",
+			NULL,
+			"usage_2"
+		);
 	`)
 	if err != nil {
 		log.Fatal(err)
@@ -60,18 +73,56 @@ func TestGET(t *testing.T) {
 		Handler(makeGETHandler(db)).
 		Get("/api/v0/noauth").
 		Expect(t).
-		Body(`[{
-			"serial": 1,
-			"realm": "realm_1",
-			"ca": "ca_sub_1",
-			"requester": "requester_1",
-			"subject": "sub_1",
-			"issued": "2020-06-23",
-			"expires": "2021-06-23",
-			"revoked": false,
-			"revoked_at": "",
-			"usage": "usage_1"
-		}]`).
+		Body(`[
+			{
+				"serial": 1,
+				"realm": "realm_1",
+				"ca": "ca_sub_1",
+				"requester": "requester_1",
+				"subject": "sub_1",
+				"issued": "2020-06-23",
+				"expires": "2021-06-23",
+				"revoked": false,
+				"revoked_at": "",
+				"usage": "usage_1"
+			},
+			{
+				"serial": 2,
+				"realm": "realm_2",
+				"ca": "ca_sub_2",
+				"requester": "requester_2",
+				"subject": "sub_2",
+				"issued": "2020-06-23",
+				"expires": "2022-06-23",
+				"revoked": false,
+				"revoked_at": "",
+				"usage": "usage_2"
+			}
+		]`).
+		Status(http.StatusOK).
+		End()
+}
+
+func TestGETFilterSubject(t *testing.T) {
+	apitest.New().
+		Handler(makeGETHandler(db)).
+		Get("/api/v0/noauth").
+		Query("filter[subject]", "1").
+		Expect(t).
+		Body(`[
+			{
+				"serial": 1,
+				"realm": "realm_1",
+				"ca": "ca_sub_1",
+				"requester": "requester_1",
+				"subject": "sub_1",
+				"issued": "2020-06-23",
+				"expires": "2021-06-23",
+				"revoked": false,
+				"revoked_at": "",
+				"usage": "usage_1"
+			}
+		]`).
 		Status(http.StatusOK).
 		End()
 }

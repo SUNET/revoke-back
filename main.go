@@ -2,6 +2,8 @@
 API specification
 
 	URL: http://localhost:8888/api/v0/noauth
+	Optional query strings:
+		filter[subject]=<value>
 	Method: GET
 	Body: None
 	Response body: Array of certs (all)
@@ -41,7 +43,7 @@ func main() {
 	}
 	defer db.Close()
 
-	certs, err := readSigningLog(db)
+	certs, err := readSigningLog(db, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
