@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"path"
 	"strconv"
-	"time"
 )
 
 type requestError struct {
@@ -113,58 +112,9 @@ func makePUTHandler(db *sql.DB) errHandler {
 			return requestError{"Bad URL"}
 		}
 
-		// Get row with serial number `serial`
-		query, err := db.Prepare("select revoked from realm_signing_log where serial = ?")
+		status, err := revoke(serial, db)
 		if err != nil {
 			return err
-		}
-		defer query.Close()
-
-		rows, err := query.Query(serial)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		// Get revoked status
-		var revoked sql.NullString
-		if !rows.Next() {
-			if rows.Err() != nil {
-				return rows.Err()
-			}
-			return requestError{"Invalid serial number"}
-		}
-		err = rows.Scan(&revoked)
-		if err != nil {
-			return err
-		}
-
-		// Make sure there are no more rows with the same serial number
-		if rows.Next() {
-			if rows.Err() != nil {
-				return rows.Err()
-			}
-			return fmt.Errorf("Multiple rows returned for serial %d", serial)
-		}
-
-		// If it is already revoked, do nothing. Else, set the revocation time to now.
-		var status string
-		if revoked.Valid {
-			status = "unchanged"
-		} else {
-			status = "revoked"
-			now := time.Now().Format(layoutISO)
-
-			update, err := db.Prepare("update realm_signing_log set revoked = ? where serial = ?")
-			if err != nil {
-				return err
-			}
-			defer update.Close()
-
-			_, err = update.Exec(now, serial)
-			if err != nil {
-				return err
-			}
 		}
 
 		body := make(map[int]string)
