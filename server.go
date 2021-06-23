@@ -1,0 +1,181 @@
+package main
+
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"path"
+	"strconv"
+	"time"
+)
+
+type requestError struct {
+	msg string
+}
+
+func (e requestError) Error() string {
+	return fmt.Sprintf("Bad request: %s", e.msg)
+}
+
+type errHandler func(w http.ResponseWriter, r *http.Request) error
+
+func (fn errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if err := fn(w, r); err != nil {
+		if _, ok := err.(requestError); ok {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (certs certs) toJSON() ([]byte, error) {
+	type jsonCert struct {
+		Serial    int    `json:"serial"`
+		Realm     string `json:"realm"`
+		CA_sub    string `json:"ca"`
+		Requester string `json:"requester"`
+		Sub       string `json:"subject"`
+		Issued    string `json:"issued"`
+		Expires   string `json:"expires"`
+		Revoked   bool   `json:"revoked"`
+		RevokedAt string `json:"revoked_at"`
+		Usage     string `json:"usage"`
+	}
+
+	jsonData := make([]*jsonCert, 0, len(certs))
+	for _, c := range certs {
+		j := jsonCert{
+			Serial:    c.serial,
+			Realm:     c.realm,
+			CA_sub:    c.ca_sub,
+			Requester: c.requester,
+			Sub:       c.sub,
+			Issued:    c.issued,
+			Expires:   c.expires,
+			Usage:     c.usage,
+		}
+		if c.revoked.Valid {
+			j.Revoked = true
+			j.RevokedAt = c.revoked.String
+		} else {
+			j.Revoked = false
+		}
+		jsonData = append(jsonData, &j)
+	}
+
+	json, err := json.Marshal(jsonData)
+	if err != nil {
+		return nil, err
+	}
+
+	return json, nil
+}
+
+func makeGETHandler(db *sql.DB) errHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		if r.Method != "GET" {
+			return requestError{"Wrong method"}
+		}
+		w.Header().Set("Content-Type", "application/json")
+
+		certs, err := readSigningLog(db)
+		if err != nil {
+			return err
+		}
+		json, err := certs.toJSON()
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(json)
+		return err
+	}
+}
+
+func makePUTHandler(db *sql.DB) errHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		switch r.Method {
+		case "OPTIONS":
+			w.Header().Set("Access-Control-Allow-Methods", "GET, PUT")
+			w.WriteHeader(http.StatusNoContent)
+			return nil
+		case "PUT":
+			w.Header().Set("Content-Type", "application/json")
+		default:
+			return requestError{"Wrong method"}
+		}
+
+		serialStr := path.Base(r.URL.Path)
+		serial, err := strconv.Atoi(serialStr)
+		if err != nil {
+			return requestError{"Bad URL"}
+		}
+
+		// Get row with serial number `serial`
+		query, err := db.Prepare("select revoked from realm_signing_log where serial = ?")
+		if err != nil {
+			return err
+		}
+		defer query.Close()
+
+		rows, err := query.Query(serial)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		// Get revoked status
+		var revoked sql.NullString
+		if !rows.Next() {
+			if rows.Err() != nil {
+				return rows.Err()
+			}
+			return requestError{"Invalid serial number"}
+		}
+		err = rows.Scan(&revoked)
+		if err != nil {
+			return err
+		}
+
+		// Make sure there are no more rows with the same serial number
+		if rows.Next() {
+			if rows.Err() != nil {
+				return rows.Err()
+			}
+			return fmt.Errorf("Multiple rows returned for serial %d", serial)
+		}
+
+		// If it is already revoked, do nothing. Else, set the revocation time to now.
+		var status string
+		if revoked.Valid {
+			status = "unchanged"
+		} else {
+			status = "revoked"
+			now := time.Now().Format(layoutISO)
+
+			update, err := db.Prepare("update realm_signing_log set revoked = ? where serial = ?")
+			if err != nil {
+				return err
+			}
+			defer update.Close()
+
+			_, err = update.Exec(now, serial)
+			if err != nil {
+				return err
+			}
+		}
+
+		body := make(map[int]string)
+		body[serial] = status
+		json, err := json.Marshal(body)
+		if err != nil {
+			return err
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, err = w.Write(json)
+		return err
+	}
+}
