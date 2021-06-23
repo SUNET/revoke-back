@@ -78,8 +78,16 @@ func readSigningLog(db *sql.DB) (certs, error) {
 	return res, nil
 }
 
-// Attempt to revoke a certificate. Return a status string: "revoked" or "unchanged".
-func revoke(serial int, db *sql.DB) (string, error) {
+type dbAction int
+
+const (
+	revoke dbAction = iota
+	unrevoke
+)
+
+// Attempt to revoke or unrevoke a certificate. Return a status string:
+// "revoked", "unrevoked", or "unchanged".
+func modify(serial int, action dbAction, db *sql.DB) (string, error) {
 	// Get row with serial number `serial`
 	query, err := db.Prepare("select revoked from realm_signing_log where serial = ?")
 	if err != nil {
@@ -114,25 +122,36 @@ func revoke(serial int, db *sql.DB) (string, error) {
 		return "", fmt.Errorf("Multiple rows returned for serial %d", serial)
 	}
 
-	// If it is already revoked, do nothing. Else, set the revocation time to now.
-	var status string
+	update, err := db.Prepare("update realm_signing_log set revoked = ? where serial = ?")
+	if err != nil {
+		return "", err
+	}
+	defer update.Close()
+
 	if revoked.Valid {
-		status = "unchanged"
-	} else {
-		status = "revoked"
-		now := time.Now().Format(layoutISO)
+		// Invariant: Cert is revoked
 
-		update, err := db.Prepare("update realm_signing_log set revoked = ? where serial = ?")
+		if action == revoke {
+			return "unchanged", nil
+		}
+
+		_, err = update.Exec(nil, serial)
 		if err != nil {
 			return "", err
 		}
-		defer update.Close()
-
-		_, err = update.Exec(now, serial)
-		if err != nil {
-			return "", err
-		}
+		return "unrevoked", nil
 	}
 
-	return status, nil
+	// Invariant: Cert is not revoked
+
+	if action == unrevoke {
+		return "unchanged", nil
+	}
+
+	now := time.Now().Format(layoutISO)
+	_, err = update.Exec(now, serial)
+	if err != nil {
+		return "", err
+	}
+	return "revoked", nil
 }

@@ -7,13 +7,15 @@ API specification
 	Response body: Array of certs (all)
 	Side effect: None
 
-	URL: http://localhost:8888/api/v0/noauth/$SERIAL
+	URL: http://localhost:8888/api/v0/noauth/<SERIAL>
 	Method: PUT
-	Body: None
-	Response body: {
-		$SERIAL: "revoked" OR "unchanged"
+	Body: {
+		revoke: true OR false
 	}
-	Side effect: Revoke cert $SERIAL
+	Response body: {
+		<SERIAL>: "revoked" OR "unrevoked" OR "unchanged"
+	}
+	Side effect: Revoke cert <SERIAL>
 */
 package main
 

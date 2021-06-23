@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"path"
 	"strconv"
@@ -112,14 +113,34 @@ func makePUTHandler(db *sql.DB) errHandler {
 			return requestError{"Bad URL"}
 		}
 
-		status, err := revoke(serial, db)
+		rBodyJson, err := io.ReadAll(r.Body)
+		if err != nil {
+			return requestError{"Bad body"}
+		}
+
+		rBody := struct {
+			Revoke bool
+		}{}
+		err = json.Unmarshal(rBodyJson, &rBody)
+		if err != nil {
+			return requestError{"Bad body"}
+		}
+
+		var action dbAction
+		if rBody.Revoke {
+			action = revoke
+		} else {
+			action = unrevoke
+		}
+
+		status, err := modify(serial, action, db)
 		if err != nil {
 			return err
 		}
 
-		body := make(map[int]string)
-		body[serial] = status
-		json, err := json.Marshal(body)
+		wBody := make(map[int]string)
+		wBody[serial] = status
+		json, err := json.Marshal(wBody)
 		if err != nil {
 			return err
 		}
