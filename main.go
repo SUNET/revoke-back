@@ -1,25 +1,25 @@
 /*
-API specification
+API specification:
 
-	URL: http://localhost:8888/api/v0/noauth
-	Optional query strings:
-		filter[subject]=<value>
-		per_page=<n>
-		page=<n>
-	Method: GET
-	Body: None
-	Response body: Array of certs (all)
-	Side effect: None
+    URL: http://localhost:8888/api/v0/noauth
+    Optional query strings:
+        filter[subject]=<value>
+        per_page=<n>
+        page=<n>
+    Method: GET
+    Body: None
+    Response body: Array of certs, as specified by query strings or otherwise all.
+    Side effect: None
 
-	URL: http://localhost:8888/api/v0/noauth/<SERIAL>
-	Method: PUT
-	Body: {
-		revoke: true OR false
-	}
-	Response body: {
-		<SERIAL>: "revoked" OR "unrevoked" OR "unchanged"
-	}
-	Side effect: Revoke cert <SERIAL>
+    URL: http://localhost:8888/api/v0/noauth/<SERIAL>
+    Method: PUT
+    Body: {
+        revoke: true OR false
+    }
+    Response body: {
+        <SERIAL>: "revoked" OR "unrevoked" OR "unchanged"
+    }
+    Side effect: Revoke cert <SERIAL>
 */
 package main
 
