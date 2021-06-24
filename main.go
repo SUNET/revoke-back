@@ -4,6 +4,8 @@ API specification
 	URL: http://localhost:8888/api/v0/noauth
 	Optional query strings:
 		filter[subject]=<value>
+		per_page=<n>
+		page=<n>
 	Method: GET
 	Body: None
 	Response body: Array of certs (all)
@@ -34,6 +36,8 @@ const (
 	layoutISO  = "2006-01-02"
 	layoutOSSL = "060102150405Z"
 	OSSL_INDEX = "index.txt"
+	PER_PAGE   = 50
+	PAGE       = 1
 )
 
 func main() {
@@ -43,7 +47,7 @@ func main() {
 	}
 	defer db.Close()
 
-	certs, err := readSigningLog(db, nil)
+	certs, err := readSigningLog(db, nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

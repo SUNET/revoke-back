@@ -30,32 +30,41 @@ type filter struct {
 	value string
 }
 
-func in(x string, s []string) bool {
-	for _, y := range s {
-		if x == y {
-			return true
-		}
-	}
-	return false
+type pagination struct {
+	perPage int
+	page    int
 }
 
-func readSigningLog(db *sql.DB, f *filter) (certs, error) {
-	var rows *sql.Rows
-	var err error
+// Produce a "WHERE X CONTAINS ?" clause (actually: WHERE instr(X, ?) > 0)
+// NOTE:
+// - Caller is responsible for sanitation of f.field
+// - f.value is parameterized
+func (f *filter) SQL() string {
+	if f == nil {
+		return ""
+	}
+	return fmt.Sprintf("WHERE instr(%s, ?) > 0 ", f.field)
+}
+
+// Produce a "LIMIT X OFFSET Y" clause
+func (p *pagination) SQL() string {
+	if p == nil {
+		return ""
+	}
+	offset := p.perPage * (p.page - 1)
+	return fmt.Sprintf("LIMIT %d OFFSET %d ", p.perPage, offset)
+}
+
+func readSigningLog(db *sql.DB, f *filter, p *pagination) (certs, error) {
+	sql := "SELECT serial, realm, ca_sub, requester, sub, issued, expires, csr, x509, revoked, usage " +
+		"FROM realm_signing_log " + f.SQL() + "ORDER BY serial " + p.SQL()
+	var filterValue string
 	if f != nil {
-		// NOTE: Redundant sanitation of f.field, also done by the caller.
-		if !in(f.field, []string{"sub"}) {
-			return nil, err
-		}
-		var stmt *sql.Stmt
-		stmt, err = db.Prepare(fmt.Sprintf("select * from realm_signing_log where instr(%s, ?) > 0 order by serial", f.field))
-		if err != nil {
-			return nil, err
-		}
-		defer stmt.Close()
-		rows, err = stmt.Query(f.value)
-	} else {
-		rows, err = db.Query("select * from realm_signing_log order by serial")
+		filterValue = f.value
+	}
+	rows, err := db.Query(sql, filterValue)
+	if err != nil {
+		return nil, err
 	}
 	defer rows.Close()
 

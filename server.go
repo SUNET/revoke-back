@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 )
@@ -75,25 +76,69 @@ func (certs certs) toJSON() ([]byte, error) {
 	return json, nil
 }
 
-func makeGETHandler(db *sql.DB) errHandler {
-	var filterFields = map[string]string{
+// Read per_page and page query strings from q
+func queryPagination(q url.Values) (*pagination, error) {
+	perPageStr := q.Get("per_page")
+	pageStr := q.Get("page")
+
+	var perPage, page int
+
+	if perPageStr == "" && pageStr == "" {
+		return nil, nil
+	}
+
+	if perPageStr == "" {
+		perPage = PER_PAGE
+	} else {
+		var err error
+		perPage, err = strconv.Atoi(perPageStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if pageStr == "" {
+		page = PAGE
+	} else {
+		var err error
+		page, err = strconv.Atoi(pageStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &pagination{perPage, page}, nil
+}
+
+// Read filter query string from q
+func queryFilter(q url.Values) *filter {
+	filterFields := map[string]string{
 		"subject": "sub",
 	}
+	for apiKey, dbKey := range filterFields {
+		if v := q.Get(fmt.Sprintf("filter[%s]", apiKey)); v != "" {
+			return &filter{dbKey, v}
+		}
+	}
+	return nil
+}
+
+func makeGETHandler(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "GET" {
 			return requestError{"Wrong method"}
 		}
 		w.Header().Set("Content-Type", "application/json")
 
-		var f *filter = nil
 		q := r.URL.Query()
-		for apiKey, dbKey := range filterFields {
-			if v := q.Get(fmt.Sprintf("filter[%s]", apiKey)); v != "" {
-				f = &filter{dbKey, v}
-			}
+
+		f := queryFilter(q)
+		p, err := queryPagination(q)
+		if err != nil {
+			return requestError{"Invalid per_page or page"}
 		}
 
-		certs, err := readSigningLog(db, f)
+		certs, err := readSigningLog(db, f, p)
 		if err != nil {
 			return err
 		}
