@@ -129,6 +129,7 @@ func makeGETHandler(db *sql.DB) errHandler {
 			return requestError{"Wrong method"}
 		}
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Total-Count")
 
 		q := r.URL.Query()
 
@@ -137,6 +138,12 @@ func makeGETHandler(db *sql.DB) errHandler {
 		if err != nil {
 			return requestError{"Invalid per_page or page"}
 		}
+
+		c, err := totalCount(db, f)
+		if err != nil {
+			return err
+		}
+		w.Header().Set("X-Total-Count", strconv.Itoa(c))
 
 		certs, err := readSigningLog(db, f, p)
 		if err != nil {

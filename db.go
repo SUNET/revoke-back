@@ -55,6 +55,17 @@ func (p *pagination) SQL() string {
 	return fmt.Sprintf("LIMIT %d OFFSET %d ", p.perPage, offset)
 }
 
+func totalCount(db *sql.DB, f *filter) (res int, err error) {
+	sql := "SELECT count(*) FROM realm_signing_log " + f.SQL()
+	var filterValue string
+	if f != nil {
+		filterValue = f.value
+	}
+	row := db.QueryRow(sql, filterValue)
+	err = row.Scan(&res)
+	return
+}
+
 func readSigningLog(db *sql.DB, f *filter, p *pagination) (certs, error) {
 	sql := "SELECT serial, realm, ca_sub, requester, sub, issued, expires, csr, x509, revoked, usage " +
 		"FROM realm_signing_log " + f.SQL() + "ORDER BY serial " + p.SQL()
