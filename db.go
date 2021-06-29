@@ -103,6 +103,8 @@ func readSigningLog(db *sql.DB, f *filter, p *pagination) (certs, error) {
 		// OpenSSL) as midnight UTC. Exact time is defined in the certificate,
 		// but not in the database. Could read from certificate, but certificate
 		// is nullable in database.
+		// TODO: If we can use more descriptive column types, sqlite driver
+		// could handle conversion to time.Time.
 		i.expiresTime, err = time.Parse(layoutISO, i.expires)
 		if err != nil {
 			return nil, err
