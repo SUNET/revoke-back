@@ -158,6 +158,21 @@ func makeGETHandler(db *sql.DB) errHandler {
 	}
 }
 
+// Read JSON from rc, populate struct pointed to by data
+func readJSON(rc io.ReadCloser, data interface{}) (interface{}, error) {
+	jsonData, err := io.ReadAll(rc)
+	if err != nil {
+		return nil, requestError{"Bad body"}
+	}
+
+	err = json.Unmarshal(jsonData, data)
+	if err != nil {
+		return nil, requestError{"Bad body"}
+	}
+
+	return data, nil
+}
+
 func makePUTHandler(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		switch r.Method {
@@ -177,18 +192,10 @@ func makePUTHandler(db *sql.DB) errHandler {
 			return requestError{"Bad URL"}
 		}
 
-		rBodyJson, err := io.ReadAll(r.Body)
-		if err != nil {
-			return requestError{"Bad body"}
-		}
-
 		rBody := struct {
 			Revoke bool
 		}{}
-		err = json.Unmarshal(rBodyJson, &rBody)
-		if err != nil {
-			return requestError{"Bad body"}
-		}
+		_, err = readJSON(r.Body, &rBody)
 
 		var action dbAction
 		if rBody.Revoke {
