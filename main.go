@@ -47,16 +47,6 @@ func main() {
 	}
 	defer db.Close()
 
-	certs, err := readSigningLog(db, nil, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = certs.writeOCSPIndex()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	go func() {
 		http.Handle("/api/v0/noauth", makeGETHandler(db))
 		http.Handle("/api/v0/noauth/", makePUTHandler(db))
