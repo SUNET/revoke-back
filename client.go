@@ -94,5 +94,5 @@ func unrevoke(serial int64) (revocationResult, error) {
 	if err != nil {
 		return 0, err
 	}
-	return revoked, nil
+	return unrevoked, nil
 }
