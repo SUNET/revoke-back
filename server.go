@@ -33,46 +33,10 @@ func (fn errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (certs certs) toJSON() ([]byte, error) {
-	// TODO: Some of these fields are unused
-	type jsonCert struct {
-		Serial    int    `json:"serial"`
-		Realm     string `json:"realm"`
-		CA_sub    string `json:"ca"`
-		Requester string `json:"requester"`
-		Sub       string `json:"subject"`
-		Issued    string `json:"issued"`
-		Expires   string `json:"expires"`
-		Revoked   bool   `json:"revoked"`
-		RevokedAt string `json:"revoked_at"`
-		Usage     string `json:"usage"`
-	}
-
-	jsonData := make([]*jsonCert, 0, len(certs))
-	for _, c := range certs {
-		j := jsonCert{
-			Serial:    c.serial,
-			Realm:     c.realm,
-			CA_sub:    c.ca_sub,
-			Requester: c.requester,
-			Sub:       c.sub,
-			Issued:    c.issued,
-			Expires:   c.expires,
-			Usage:     c.usage,
-		}
-		if c.revoked.Valid {
-			j.Revoked = true
-			j.RevokedAt = c.revoked.String
-		} else {
-			j.Revoked = false
-		}
-		jsonData = append(jsonData, &j)
-	}
-
-	json, err := json.Marshal(jsonData)
+	json, err := json.Marshal(certs)
 	if err != nil {
 		return nil, err
 	}
-
 	return json, nil
 }
 
