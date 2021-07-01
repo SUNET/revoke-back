@@ -15,7 +15,10 @@ Responds with array of certificates, as specified by query strings or otherwise 
 - subject: string
 - issued: date string
 - expires: date string
-- revoked: date string or `null`
+
+And optionally (omitted == not revoked):
+
+- revoked: date string
 
 Dates are formatted "YYYY-MM-DD".
 

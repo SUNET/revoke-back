@@ -12,7 +12,7 @@ type cert struct {
 	Subject   string    `json:"subject"`
 	Issued    time.Time `json:"issued"`
 	Expires   time.Time `json:"expires"`
-	Revoked   time.Time `json:"revoked"`
+	Revoked   time.Time `json:"revoked,omitempty"`
 }
 
 type certs []*cert
