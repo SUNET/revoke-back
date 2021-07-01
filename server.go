@@ -141,12 +141,12 @@ func makeGETHandler(db *sql.DB) errHandler {
 func readJSON(rc io.ReadCloser, data interface{}) (interface{}, error) {
 	jsonData, err := io.ReadAll(rc)
 	if err != nil {
-		return nil, requestError{"Bad body"}
+		return nil, err
 	}
 
 	err = json.Unmarshal(jsonData, data)
 	if err != nil {
-		return nil, requestError{"Bad body"}
+		return nil, err
 	}
 
 	return data, nil
