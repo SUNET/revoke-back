@@ -123,7 +123,7 @@ func makeGETHandler(db *sql.DB) errHandler {
 
 		// Merge responses
 		for _, c := range certs {
-			if ocspEntry, ok := ocsp[c.Serial]; ok {
+			if ocspEntry, ok := ocsp[c.Serial]; ok && !ocspEntry.Revoked.IsZero() {
 				c.Revoked = ocspEntry.Revoked
 			}
 		}
