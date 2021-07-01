@@ -7,12 +7,12 @@ import (
 )
 
 type cert struct {
-	Serial    int64     `json:"serial"`
-	Requester string    `json:"requester"`
-	Subject   string    `json:"subject"`
-	Issued    time.Time `json:"issued"`
-	Expires   time.Time `json:"expires"`
-	Revoked   time.Time `json:"revoked,omitempty"`
+	Serial    int64      `json:"serial"`
+	Requester string     `json:"requester"`
+	Subject   string     `json:"subject"`
+	Issued    time.Time  `json:"issued"`
+	Expires   time.Time  `json:"expires"`
+	Revoked   *time.Time `json:"revoked"`
 }
 
 type certs []*cert
@@ -104,7 +104,7 @@ func readSigningLog(db *sql.DB, f *filter, p *pagination) (certs, error) {
 			subject,
 			issued,
 			expires,
-			time.Time{},
+			nil,
 		})
 	}
 

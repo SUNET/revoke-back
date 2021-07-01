@@ -90,7 +90,7 @@ func unrevoke(serial int64) (revocationResult, error) {
 		return unchanged, nil
 	}
 
-	err = update(serial, time.Now().UTC())
+	err = update(serial, time.Time{})
 	if err != nil {
 		return 0, err
 	}
