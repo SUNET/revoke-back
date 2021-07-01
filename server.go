@@ -165,8 +165,9 @@ func makePUTHandler(db *sql.DB) errHandler {
 			return requestError{"Wrong method"}
 		}
 
+		// Parse request
 		serialStr := path.Base(r.URL.Path)
-		serial, err := strconv.Atoi(serialStr)
+		serial, err := strconv.ParseInt(serialStr, 10, 64)
 		if err != nil {
 			return requestError{"Bad URL"}
 		}
@@ -176,20 +177,19 @@ func makePUTHandler(db *sql.DB) errHandler {
 		}{}
 		_, err = readJSON(r.Body, &rBody)
 
-		var action dbAction
+		// Push update to OCSP responder
+		var status revocationResult
 		if rBody.Revoke {
-			action = revoke
+			status, err = revoke(serial)
 		} else {
-			action = unrevoke
+			status, err = unrevoke(serial)
 		}
-
-		status, err := modify(serial, action, db)
 		if err != nil {
 			return err
 		}
 
-		wBody := make(map[int]string)
-		wBody[serial] = status
+		wBody := make(map[int64]string)
+		wBody[serial] = status.String()
 		json, err := json.Marshal(wBody)
 		if err != nil {
 			return err
