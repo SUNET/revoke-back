@@ -13,11 +13,11 @@ Responds with array of certificates, as specified by query strings or otherwise 
 - serial: integer
 - requester: string
 - subject: string
-- issued: date string
-- expires: date string
-- revoked: optional date string (or `null`)
+- issued: date string (precision: day)
+- expires: date string (precision: day)
+- revoked: nullable date string (precision: second)
 
-Dates are formatted "YYYY-MM-DD".
+Dates are formatted according to RFC 3339.
 
 ### `/api/v0/noauth/<serial>`
 
