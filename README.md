@@ -4,18 +4,18 @@
 
 - Method: GET
 - Optional query strings:
-    - filter[subject]=<value>
-    - per_page=<n>
-    - page=<n>
+    - `filter[subject]=<value>`
+    - `per_page=<n>`
+    - `page=<n>`
 
-Responds with array of certificates, as specified by query strings or otherwise all. A certificate consists of:
+Responds with an array of certificates, as specified by query strings or otherwise all. A certificate consists of:
 
-- serial: integer
-- requester: string
-- subject: string
-- issued: date string (precision: day)
-- expires: date string (precision: day)
-- revoked: nullable date string (precision: second)
+- `serial`: integer
+- `requester`: string
+- `subject`: string
+- `issued`: date string (precision: day)
+- `expires`: date string (precision: day)
+- `revoked`: nullable date string (precision: second)
 
 Dates are formatted according to RFC 3339.
 
@@ -23,7 +23,7 @@ Dates are formatted according to RFC 3339.
 
 - Method: PUT
 - Body:
-    - revoke: boolean
+    - `revoke`: boolean
 
 Revoke or unrevoke cert `<serial>`. Responds with a JSON body consisting of:
 
