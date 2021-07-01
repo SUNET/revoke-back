@@ -33,46 +33,10 @@ func (fn errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (certs certs) toJSON() ([]byte, error) {
-	// TODO: Some of these fields are unused
-	type jsonCert struct {
-		Serial    int    `json:"serial"`
-		Realm     string `json:"realm"`
-		CA_sub    string `json:"ca"`
-		Requester string `json:"requester"`
-		Sub       string `json:"subject"`
-		Issued    string `json:"issued"`
-		Expires   string `json:"expires"`
-		Revoked   bool   `json:"revoked"`
-		RevokedAt string `json:"revoked_at"`
-		Usage     string `json:"usage"`
-	}
-
-	jsonData := make([]*jsonCert, 0, len(certs))
-	for _, c := range certs {
-		j := jsonCert{
-			Serial:    c.serial,
-			Realm:     c.realm,
-			CA_sub:    c.ca_sub,
-			Requester: c.requester,
-			Sub:       c.sub,
-			Issued:    c.issued,
-			Expires:   c.expires,
-			Usage:     c.usage,
-		}
-		if c.revoked.Valid {
-			j.Revoked = true
-			j.RevokedAt = c.revoked.String
-		} else {
-			j.Revoked = false
-		}
-		jsonData = append(jsonData, &j)
-	}
-
-	json, err := json.Marshal(jsonData)
+	json, err := json.Marshal(certs)
 	if err != nil {
 		return nil, err
 	}
-
 	return json, nil
 }
 
@@ -145,10 +109,25 @@ func makeGETHandler(db *sql.DB) errHandler {
 		}
 		w.Header().Set("X-Total-Count", strconv.Itoa(c))
 
+		// Query local database
 		certs, err := readSigningLog(db, f, p)
 		if err != nil {
 			return err
 		}
+
+		// Query OCSP responder
+		ocsp, err := readOCSP()
+		if err != nil {
+			return fmt.Errorf("Error querying OCSP server: %s", err.Error())
+		}
+
+		// Merge responses
+		for _, c := range certs {
+			if ocspEntry, ok := ocsp[c.Serial]; ok && !ocspEntry.Revoked.IsZero() {
+				c.Revoked = ocspEntry.Revoked
+			}
+		}
+
 		json, err := certs.toJSON()
 		if err != nil {
 			return err
@@ -162,12 +141,12 @@ func makeGETHandler(db *sql.DB) errHandler {
 func readJSON(rc io.ReadCloser, data interface{}) (interface{}, error) {
 	jsonData, err := io.ReadAll(rc)
 	if err != nil {
-		return nil, requestError{"Bad body"}
+		return nil, err
 	}
 
 	err = json.Unmarshal(jsonData, data)
 	if err != nil {
-		return nil, requestError{"Bad body"}
+		return nil, err
 	}
 
 	return data, nil
@@ -186,8 +165,9 @@ func makePUTHandler(db *sql.DB) errHandler {
 			return requestError{"Wrong method"}
 		}
 
+		// Parse request
 		serialStr := path.Base(r.URL.Path)
-		serial, err := strconv.Atoi(serialStr)
+		serial, err := strconv.ParseInt(serialStr, 10, 64)
 		if err != nil {
 			return requestError{"Bad URL"}
 		}
@@ -197,20 +177,19 @@ func makePUTHandler(db *sql.DB) errHandler {
 		}{}
 		_, err = readJSON(r.Body, &rBody)
 
-		var action dbAction
+		// Push update to OCSP responder
+		var status revocationResult
 		if rBody.Revoke {
-			action = revoke
+			status, err = revoke(serial)
 		} else {
-			action = unrevoke
+			status, err = unrevoke(serial)
 		}
-
-		status, err := modify(serial, action, db)
 		if err != nil {
 			return err
 		}
 
-		wBody := make(map[int]string)
-		wBody[serial] = status
+		wBody := make(map[int64]string)
+		wBody[serial] = status.String()
 		json, err := json.Marshal(wBody)
 		if err != nil {
 			return err
