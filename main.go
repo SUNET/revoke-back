@@ -10,11 +10,12 @@ import (
 )
 
 const (
-	layoutISO  = "2006-01-02"
-	layoutOSSL = "060102150405Z"
-	OSSL_INDEX = "index.txt"
-	PER_PAGE   = 50
-	PAGE       = 1
+	layoutISO          = "2006-01-02"
+	layoutOSSL         = "060102150405Z"
+	OSSL_INDEX         = "index.txt"
+	PER_PAGE           = 50
+	PAGE               = 1
+	OCSP_RESPONDER_URL = "http://localhost:8889"
 )
 
 func main() {

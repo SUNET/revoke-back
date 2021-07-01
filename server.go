@@ -109,10 +109,25 @@ func makeGETHandler(db *sql.DB) errHandler {
 		}
 		w.Header().Set("X-Total-Count", strconv.Itoa(c))
 
+		// Query local database
 		certs, err := readSigningLog(db, f, p)
 		if err != nil {
 			return err
 		}
+
+		// Query OCSP responder
+		ocsp, err := readOCSP()
+		if err != nil {
+			return fmt.Errorf("Error querying OCSP server: %s", err.Error())
+		}
+
+		// Merge responses
+		for _, c := range certs {
+			if ocspEntry, ok := ocsp[c.Serial]; ok {
+				c.Revoked = ocspEntry.Revoked
+			}
+		}
+
 		json, err := certs.toJSON()
 		if err != nil {
 			return err
