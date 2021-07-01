@@ -11,6 +11,7 @@ func readOCSP() (map[int64]*cert, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var body map[int64]*cert
 	_, err = readJSON(resp.Body, &body)
