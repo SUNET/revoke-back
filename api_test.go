@@ -2,12 +2,22 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"testing"
 
+	"github.com/ernstwi/ocsp-responder/ocsp"
 	"github.com/steinfletcher/apitest"
+)
+
+const (
+	CA_CERT        = "test-data/ca.pem"
+	RESPONDER_CERT = "test-data/responder.pem"
+	RESPONDER_KEY  = "test-data/responder_key.pem"
+	OCSP_PORT      = 8889
 )
 
 var db *sql.DB
@@ -60,10 +70,32 @@ func TestMain(m *testing.M) {
 			NULL,
 			"usage_2"
 		);
+
+		CREATE TABLE "revoked" (
+			"serial" INTEGER NOT NULL PRIMARY KEY,
+			"revoked" DATE NOT NULL
+		);
+
+		INSERT INTO "revoked" VALUES
+			(1, "0001-01-01T00:00:00Z"),
+			(2, "2019-10-12T07:20:50Z");
 	`)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	http.Handle("/update", ocsp.MakeUpdateHandler(db))
+	http.Handle("/init", ocsp.MakeInitHandler(db))
+	http.Handle("/all", ocsp.MakeAllHandler(db))
+
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", OCSP_PORT))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go func() {
+		log.Fatal(http.Serve(l, nil))
+	}()
 
 	os.Exit(m.Run())
 }
@@ -76,27 +108,19 @@ func TestGET(t *testing.T) {
 		Body(`[
 			{
 				"serial": 1,
-				"realm": "realm_1",
-				"ca": "ca_sub_1",
 				"requester": "requester_1",
 				"subject": "sub_1",
-				"issued": "2020-06-23",
-				"expires": "2021-06-23",
-				"revoked": false,
-				"revoked_at": "",
-				"usage": "usage_1"
+				"issued": "2020-06-23T00:00:00Z",
+				"expires": "2021-06-23T00:00:00Z",
+				"revoked": null
 			},
 			{
 				"serial": 2,
-				"realm": "realm_2",
-				"ca": "ca_sub_2",
 				"requester": "requester_2",
 				"subject": "sub_2",
-				"issued": "2020-06-23",
-				"expires": "2022-06-23",
-				"revoked": false,
-				"revoked_at": "",
-				"usage": "usage_2"
+				"issued": "2020-06-23T00:00:00Z",
+				"expires": "2022-06-23T00:00:00Z",
+				"revoked": "2019-10-12T07:20:50Z"
 			}
 		]`).
 		Status(http.StatusOK).
@@ -112,15 +136,11 @@ func TestGETFilterSubject(t *testing.T) {
 		Body(`[
 			{
 				"serial": 1,
-				"realm": "realm_1",
-				"ca": "ca_sub_1",
 				"requester": "requester_1",
 				"subject": "sub_1",
-				"issued": "2020-06-23",
-				"expires": "2021-06-23",
-				"revoked": false,
-				"revoked_at": "",
-				"usage": "usage_1"
+				"issued": "2020-06-23T00:00:00Z",
+				"expires": "2021-06-23T00:00:00Z",
+				"revoked": null
 			}
 		]`).
 		Status(http.StatusOK).
