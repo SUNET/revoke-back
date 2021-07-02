@@ -11,6 +11,7 @@ import (
 
 	"github.com/ernstwi/ocsp-responder/ocsp"
 	"github.com/steinfletcher/apitest"
+	jsonpath "github.com/steinfletcher/apitest-jsonpath"
 )
 
 const (
@@ -22,15 +23,10 @@ const (
 
 var db *sql.DB
 
-func TestMain(m *testing.M) {
-	var err error
-	db, err = sql.Open("sqlite3", ":memory:") // In-memory database
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
+func setup() {
+	_, err := db.Exec(`
+		DROP TABLE IF EXISTS "realm_signing_log";
 
-	_, err = db.Exec(`
 		CREATE TABLE realm_signing_log (
 			serial INTEGER NOT NULL PRIMARY KEY,
 			realm TEXT NOT NULL,
@@ -44,32 +40,36 @@ func TestMain(m *testing.M) {
 			revoked TEXT,
 			usage TEXT NOT NULL
 		);
-		INSERT INTO realm_signing_log VALUES (
-			1,
-			"realm_1",
-			"ca_sub_1",
-			"requester_1",
-			"sub_1",
-			"2020-06-23",
-			"2021-06-23",
-			"csr_1",
-			"x509_1",
-			NULL,
-			"usage_1"
-		);
-		INSERT INTO realm_signing_log VALUES (
-			2,
-			"realm_2",
-			"ca_sub_2",
-			"requester_2",
-			"sub_2",
-			"2020-06-23",
-			"2022-06-23",
-			"csr_2",
-			"x509_2",
-			NULL,
-			"usage_2"
-		);
+
+		INSERT INTO realm_signing_log VALUES
+			(
+				1,
+				"realm_1",
+				"ca_sub_1",
+				"requester_1",
+				"sub_1",
+				"2020-06-23",
+				"2021-06-23",
+				"csr_1",
+				"x509_1",
+				NULL,
+				"usage_1"
+			),
+			(
+				2,
+				"realm_2",
+				"ca_sub_2",
+				"requester_2",
+				"sub_2",
+				"2020-06-23",
+				"2022-06-23",
+				"csr_2",
+				"x509_2",
+				NULL,
+				"usage_2"
+			);
+
+		DROP TABLE IF EXISTS "revoked";
 
 		CREATE TABLE "revoked" (
 			"serial" INTEGER NOT NULL PRIMARY KEY,
@@ -83,6 +83,15 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func TestMain(m *testing.M) {
+	var err error
+	db, err = sql.Open("sqlite3", ":memory:") // In-memory database
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 
 	http.Handle("/update", ocsp.MakeUpdateHandler(db))
 	http.Handle("/init", ocsp.MakeInitHandler(db))
@@ -101,6 +110,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestGET(t *testing.T) {
+	setup()
 	apitest.New().
 		Handler(makeGETHandler(db)).
 		Get("/api/v0/noauth").
@@ -127,7 +137,48 @@ func TestGET(t *testing.T) {
 		End()
 }
 
+func TestPUT(t *testing.T) {
+	setup()
+	t.Run("Revoke #1", func(t *testing.T) {
+		apitest.New().
+			Handler(makePUTHandler(db)).
+			Put("/api/v0/noauth/1").
+			Body(`{ "revoke": true }`).
+			Expect(t).
+			Status(http.StatusOK).
+			End()
+	})
+	t.Run("Confirm #1 is revoked", func(r *testing.T) {
+		apitest.New().
+			Handler(makeGETHandler(db)).
+			Get("/api/v0/noauth").
+			Expect(t).
+			Assert(jsonpath.NotEqual("$[0].revoked", nil)).
+			Status(http.StatusOK).
+			End()
+	})
+	t.Run("Unrevoke #1", func(t *testing.T) {
+		apitest.New().
+			Handler(makePUTHandler(db)).
+			Put("/api/v0/noauth/1").
+			Body(`{ "revoke": false }`).
+			Expect(t).
+			Status(http.StatusOK).
+			End()
+	})
+	t.Run("Confirm #1 is unrevoked", func(r *testing.T) {
+		apitest.New().
+			Handler(makeGETHandler(db)).
+			Get("/api/v0/noauth").
+			Expect(t).
+			Assert(jsonpath.Equal("$[0].revoked", nil)).
+			Status(http.StatusOK).
+			End()
+	})
+}
+
 func TestGETFilterSubject(t *testing.T) {
+	setup()
 	apitest.New().
 		Handler(makeGETHandler(db)).
 		Get("/api/v0/noauth").
