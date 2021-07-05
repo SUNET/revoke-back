@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+const (
+	layoutISO  = "2006-01-02"
+	layoutOSSL = "060102150405Z"
+)
+
 type cert struct {
 	Serial    int64      `json:"serial"`
 	Requester string     `json:"requester"`

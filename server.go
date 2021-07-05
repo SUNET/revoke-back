@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 )
@@ -45,30 +46,26 @@ func queryPagination(q url.Values) (*pagination, error) {
 	perPageStr := q.Get("per_page")
 	pageStr := q.Get("page")
 
-	var perPage, page int
-
 	if perPageStr == "" && pageStr == "" {
 		return nil, nil
 	}
 
 	if perPageStr == "" {
-		perPage = PER_PAGE
-	} else {
-		var err error
-		perPage, err = strconv.Atoi(perPageStr)
-		if err != nil {
-			return nil, err
-		}
+		perPageStr = os.Getenv("PER_PAGE")
 	}
 
 	if pageStr == "" {
-		page = PAGE
-	} else {
-		var err error
-		page, err = strconv.Atoi(pageStr)
-		if err != nil {
-			return nil, err
-		}
+		pageStr = os.Getenv("PAGE")
+	}
+
+	perPage, err := strconv.Atoi(perPageStr)
+	if err != nil {
+		return nil, err
+	}
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil {
+		return nil, err
 	}
 
 	return &pagination{perPage, page}, nil

@@ -2,23 +2,38 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 
+	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const (
-	layoutISO          = "2006-01-02"
-	layoutOSSL         = "060102150405Z"
-	OSSL_INDEX         = "index.txt"
-	PER_PAGE           = 50
-	PAGE               = 1
-	OCSP_RESPONDER_URL = "http://localhost:8889"
-)
+var REQUIRED_ENV_VARS = [...]string{
+	"OCSP_RESPONDER_URL",
+	"PAGE",
+	"PER_PAGE",
+}
+
+func loadEnv() {
+	err := godotenv.Overload("default.env", "custom.env")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, x := range REQUIRED_ENV_VARS {
+		if _, ok := os.LookupEnv(x); !ok {
+			log.Fatal(fmt.Errorf("Environment variable %s not defined", x))
+		}
+	}
+}
 
 func main() {
+	loadEnv()
+
 	db, err := sql.Open("sqlite3", "./letswifi-dev.sqlite")
 	if err != nil {
 		log.Fatal(err)

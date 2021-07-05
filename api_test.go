@@ -86,6 +86,8 @@ func setup() {
 }
 
 func TestMain(m *testing.M) {
+	loadEnv()
+
 	var err error
 	db, err = sql.Open("sqlite3", ":memory:") // In-memory database
 	if err != nil {
@@ -96,6 +98,11 @@ func TestMain(m *testing.M) {
 	http.Handle("/update", ocsp.MakeUpdateHandler(db))
 	http.Handle("/init", ocsp.MakeInitHandler(db))
 	http.Handle("/all", ocsp.MakeAllHandler(db))
+
+	err = os.Setenv("OCSP_RESPONDER_URL", fmt.Sprintf("http://localhost:%d", OCSP_PORT))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", OCSP_PORT))
 	if err != nil {
