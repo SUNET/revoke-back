@@ -87,6 +87,7 @@ func setup() {
 
 func TestMain(m *testing.M) {
 	loadEnv()
+	assertEnv("PAGE", "PER_PAGE")
 
 	var err error
 	db, err = sql.Open("sqlite3", ":memory:") // In-memory database

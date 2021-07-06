@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -24,6 +25,8 @@ type errHandler func(w http.ResponseWriter, r *http.Request) error
 
 func (fn errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT")
+	w.Header().Set("Access-Control-Allow-Headers", "Authorization")
 	if err := fn(w, r); err != nil {
 		if _, ok := err.(requestError); ok {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -153,7 +156,6 @@ func makePUTHandler(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		switch r.Method {
 		case "OPTIONS":
-			w.Header().Set("Access-Control-Allow-Methods", "GET, PUT")
 			w.WriteHeader(http.StatusNoContent)
 			return nil
 		case "PUT":
@@ -192,8 +194,47 @@ func makePUTHandler(db *sql.DB) errHandler {
 			return err
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		_, err = w.Write(json)
 		return err
+	}
+}
+
+// Forwards a request to JWT issuer
+func makeLoginHandler(db *sql.DB) errHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		switch r.Method {
+		case "OPTIONS":
+			w.WriteHeader(http.StatusNoContent)
+			return nil
+		case "POST":
+			w.Header().Set("Content-Type", "application/json")
+		default:
+			return requestError{"Wrong method"}
+		}
+
+		jwtReq, err := http.NewRequest("POST", os.Getenv("JWT_URL"), nil)
+		if err != nil {
+			return err
+		}
+		jwtReq.Header.Set("Authorization", r.Header.Get("Authorization"))
+
+		// TODO: JWT dev server's certificate is not valid
+		tr := http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+		client := http.Client{Transport: &tr}
+
+		resp, err := client.Do(jwtReq)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+		defer resp.Body.Close()
+
+		json, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+
+		w.Write(json)
+		return nil
 	}
 }
