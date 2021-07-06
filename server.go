@@ -222,19 +222,26 @@ func makeLoginHandler(db *sql.DB) errHandler {
 		tr := http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 		client := http.Client{Transport: &tr}
 
-		resp, err := client.Do(jwtReq)
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-		defer resp.Body.Close()
-
-		json, err := io.ReadAll(resp.Body)
+		jwtResp, err := client.Do(jwtReq)
 		if err != nil {
 			return err
 		}
+		defer jwtResp.Body.Close()
 
-		w.Write(json)
-		return nil
+		switch jwtResp.StatusCode {
+		case http.StatusUnauthorized:
+			w.WriteHeader(jwtResp.StatusCode)
+			return nil
+		case http.StatusOK:
+			json, err := io.ReadAll(jwtResp.Body)
+			if err != nil {
+				return err
+			}
+
+			w.Write(json)
+			return nil
+		default:
+			return fmt.Errorf("JWT error: %v", jwtResp.Status)
+		}
 	}
 }
