@@ -27,6 +27,12 @@ func (fn errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT")
 	w.Header().Set("Access-Control-Allow-Headers", "Authorization")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	if err := fn(w, r); err != nil {
 		if _, ok := err.(requestError); ok {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -92,7 +98,6 @@ func makeGETHandler(db *sql.DB) errHandler {
 		if r.Method != "GET" {
 			return requestError{"Wrong method"}
 		}
-		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Total-Count")
 
 		q := r.URL.Query()
@@ -132,6 +137,8 @@ func makeGETHandler(db *sql.DB) errHandler {
 		if err != nil {
 			return err
 		}
+
+		w.Header().Set("Content-Type", "application/json")
 		_, err = w.Write(json)
 		return err
 	}
@@ -154,13 +161,7 @@ func readJSON(rc io.ReadCloser, data interface{}) (interface{}, error) {
 
 func makePUTHandler(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		switch r.Method {
-		case "OPTIONS":
-			w.WriteHeader(http.StatusNoContent)
-			return nil
-		case "PUT":
-			w.Header().Set("Content-Type", "application/json")
-		default:
+		if r.Method != "PUT" {
 			return requestError{"Wrong method"}
 		}
 
@@ -194,6 +195,7 @@ func makePUTHandler(db *sql.DB) errHandler {
 			return err
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		_, err = w.Write(json)
 		return err
 	}
@@ -202,13 +204,7 @@ func makePUTHandler(db *sql.DB) errHandler {
 // Forwards a request to JWT issuer
 func makeLoginHandler(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		switch r.Method {
-		case "OPTIONS":
-			w.WriteHeader(http.StatusNoContent)
-			return nil
-		case "POST":
-			w.Header().Set("Content-Type", "application/json")
-		default:
+		if r.Method != "POST" {
 			return requestError{"Wrong method"}
 		}
 
@@ -237,9 +233,9 @@ func makeLoginHandler(db *sql.DB) errHandler {
 			if err != nil {
 				return err
 			}
-
-			w.Write(json)
-			return nil
+			w.Header().Set("Content-Type", "application/json")
+			_, err = w.Write(json)
+			return err
 		default:
 			return fmt.Errorf("JWT error: %v", jwtResp.Status)
 		}
