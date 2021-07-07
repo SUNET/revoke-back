@@ -19,6 +19,7 @@ import (
 var REQUIRED_ENV_VARS = []string{
 	"JWT_URL",
 	"JWT_PUBLIC_KEY",
+	"JWT_USER",
 	"OCSP_RESPONDER_URL",
 	"PAGE",
 	"PER_PAGE",

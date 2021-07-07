@@ -26,6 +26,14 @@ func (e requestError) Error() string {
 	return fmt.Sprintf("Bad request: %s", e.msg)
 }
 
+type authError struct {
+	msg string
+}
+
+func (e authError) Error() string {
+	return fmt.Sprintf("Authorization error: %s", e.msg)
+}
+
 type errHandler func(w http.ResponseWriter, r *http.Request) error
 
 func (fn errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -57,11 +65,11 @@ func authMiddleware(jwtKey *ecdsa.PublicKey, next errHandler) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		auth := r.Header.Get("Authorization")
 		if auth == "" {
-			return requestError{"Missing Authorization header"}
+			return authError{"Missing Authorization header"}
 		}
 		split := strings.Split(auth, " ")
 		if len(split) < 2 || split[0] != "Bearer" {
-			return requestError{"Malformed Authorization header"}
+			return authError{"Malformed Authorization header"}
 		}
 		token := split[1]
 
@@ -69,7 +77,10 @@ func authMiddleware(jwtKey *ecdsa.PublicKey, next errHandler) errHandler {
 		if err != nil {
 			return err
 		}
-		fmt.Println("User", user)
+
+		if user != os.Getenv("JWT_USER") {
+			return authError{"Wrong username"}
+		}
 
 		return next(w, r)
 	}
