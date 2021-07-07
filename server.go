@@ -36,7 +36,7 @@ func (fn errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func headerMiddleware(next errHandler) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS, POST, PUT")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization")
 
 		if r.Method == "OPTIONS" {
