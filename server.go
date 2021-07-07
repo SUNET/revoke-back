@@ -18,23 +18,21 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-type requestError struct {
-	msg string
-}
+type requestError string
+type authError string
 
 func (e requestError) Error() string {
-	return fmt.Sprintf("Bad request: %s", e.msg)
-}
-
-type authError struct {
-	msg string
+	if e == "" {
+		return "Bad request"
+	}
+	return fmt.Sprintf("Bad request: %s", string(e))
 }
 
 func (e authError) Error() string {
-	if e.msg == "" {
+	if e == "" {
 		return "Authorization error"
 	}
-	return fmt.Sprintf("Authorization error: %s", e.msg)
+	return fmt.Sprintf("Authorization error: %s", string(e))
 }
 
 type errHandler func(w http.ResponseWriter, r *http.Request) error
@@ -71,11 +69,11 @@ func authMiddleware(jwtKey *ecdsa.PublicKey, next errHandler) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		auth := r.Header.Get("Authorization")
 		if auth == "" {
-			return requestError{"Missing Authorization header"}
+			return requestError("Missing Authorization header")
 		}
 		split := strings.Split(auth, " ")
 		if len(split) < 2 || split[0] != "Bearer" {
-			return requestError{"Malformed Authorization header"}
+			return requestError("Malformed Authorization header")
 		}
 		token := split[1]
 
@@ -85,7 +83,7 @@ func authMiddleware(jwtKey *ecdsa.PublicKey, next errHandler) errHandler {
 		}
 
 		if user != os.Getenv("JWT_USER") {
-			return authError{"Wrong username"}
+			return authError("Wrong username")
 		}
 
 		return next(w, r)
@@ -159,7 +157,7 @@ func jwtVerify(tokenString string, key *ecdsa.PublicKey) (username string, err e
 		return "", errors.New(`JWT: Error reading claims`)
 	}
 	if claims.Subject == "" {
-		return "", requestError{`JWT: "sub" claim missing`}
+		return "", requestError(`JWT: "sub" claim missing`)
 	}
 	return claims.Subject, nil
 }
@@ -167,7 +165,7 @@ func jwtVerify(tokenString string, key *ecdsa.PublicKey) (username string, err e
 func makeGETHandler(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "GET" {
-			return requestError{"Wrong method"}
+			return requestError("Wrong method")
 		}
 		w.Header().Set("Access-Control-Expose-Headers", "X-Total-Count")
 
@@ -176,7 +174,7 @@ func makeGETHandler(db *sql.DB) errHandler {
 		f := queryFilter(q)
 		p, err := queryPagination(q)
 		if err != nil {
-			return requestError{"Invalid per_page or page"}
+			return requestError("Invalid per_page or page")
 		}
 
 		c, err := totalCount(db, f)
@@ -233,14 +231,14 @@ func readJSON(rc io.ReadCloser, data interface{}) (interface{}, error) {
 func makePUTHandler(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "PUT" {
-			return requestError{"Wrong method"}
+			return requestError("Wrong method")
 		}
 
 		// Parse request
 		serialStr := path.Base(r.URL.Path)
 		serial, err := strconv.ParseInt(serialStr, 10, 64)
 		if err != nil {
-			return requestError{"Bad URL"}
+			return requestError("Bad URL")
 		}
 
 		rBody := struct {
@@ -276,7 +274,7 @@ func makePUTHandler(db *sql.DB) errHandler {
 func makeLoginHandler(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "POST" {
-			return requestError{"Wrong method"}
+			return requestError("Wrong method")
 		}
 
 		jwtReq, err := http.NewRequest("POST", os.Getenv("JWT_URL"), nil)
@@ -297,7 +295,7 @@ func makeLoginHandler(db *sql.DB) errHandler {
 
 		switch jwtResp.StatusCode {
 		case http.StatusUnauthorized:
-			return authError{"Unrecognized username or password"}
+			return authError("Unrecognized username or password")
 		case http.StatusOK:
 			json, err := io.ReadAll(jwtResp.Body)
 			if err != nil {
