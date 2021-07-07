@@ -127,8 +127,15 @@ func makeGETHandler(db *sql.DB, jwtKey *ecdsa.PublicKey) errHandler {
 		w.Header().Set("Access-Control-Expose-Headers", "X-Total-Count")
 
 		auth := r.Header.Get("Authorization")
-		fmt.Println(auth)
-		token := strings.Split(auth, " ")[1]
+		if auth == "" {
+			return requestError{"Missing Authorization header"}
+		}
+		split := strings.Split(auth, " ")
+		if len(split) < 2 || split[0] != "Bearer" {
+			return requestError{"Malformed Authorization header"}
+		}
+		token := split[1]
+
 		user, err := jwtVerify(token, jwtKey)
 		if err != nil {
 			return err
