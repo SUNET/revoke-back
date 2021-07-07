@@ -31,6 +31,9 @@ type authError struct {
 }
 
 func (e authError) Error() string {
+	if e.msg == "" {
+		return "Authorization error"
+	}
 	return fmt.Sprintf("Authorization error: %s", e.msg)
 }
 
@@ -38,11 +41,14 @@ type errHandler func(w http.ResponseWriter, r *http.Request) error
 
 func (fn errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := fn(w, r); err != nil {
-		if _, ok := err.(requestError); ok {
+		switch err.(type) {
+		case authError:
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+		case requestError:
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+		default:
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -65,11 +71,11 @@ func authMiddleware(jwtKey *ecdsa.PublicKey, next errHandler) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		auth := r.Header.Get("Authorization")
 		if auth == "" {
-			return authError{"Missing Authorization header"}
+			return requestError{"Missing Authorization header"}
 		}
 		split := strings.Split(auth, " ")
 		if len(split) < 2 || split[0] != "Bearer" {
-			return authError{"Malformed Authorization header"}
+			return requestError{"Malformed Authorization header"}
 		}
 		token := split[1]
 
@@ -291,8 +297,7 @@ func makeLoginHandler(db *sql.DB) errHandler {
 
 		switch jwtResp.StatusCode {
 		case http.StatusUnauthorized:
-			w.WriteHeader(jwtResp.StatusCode)
-			return nil
+			return authError{"Unrecognized username or password"}
 		case http.StatusOK:
 			json, err := io.ReadAll(jwtResp.Body)
 			if err != nil {
@@ -302,7 +307,7 @@ func makeLoginHandler(db *sql.DB) errHandler {
 			_, err = w.Write(json)
 			return err
 		default:
-			return fmt.Errorf("JWT error: %v", jwtResp.Status)
+			return fmt.Errorf("JWT server error: %v", jwtResp.Status)
 		}
 	}
 }
