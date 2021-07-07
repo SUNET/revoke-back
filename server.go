@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
@@ -97,12 +98,12 @@ func queryFilter(q url.Values) *filter {
 	return nil
 }
 
-func jwtVerify(tokenString string) (username string, err error) {
+func jwtVerify(tokenString string, key *ecdsa.PublicKey) (username string, err error) {
 	token, err := jwt.ParseWithClaims(tokenString, new(jwt.StandardClaims), func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-		return jwtPublicKey, nil
+		return key, nil
 	})
 	if err != nil {
 		return "", err
@@ -118,7 +119,7 @@ func jwtVerify(tokenString string) (username string, err error) {
 	return claims.Subject, nil
 }
 
-func makeGETHandler(db *sql.DB) errHandler {
+func makeGETHandler(db *sql.DB, jwtKey *ecdsa.PublicKey) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "GET" {
 			return requestError{"Wrong method"}
@@ -128,7 +129,7 @@ func makeGETHandler(db *sql.DB) errHandler {
 		auth := r.Header.Get("Authorization")
 		fmt.Println(auth)
 		token := strings.Split(auth, " ")[1]
-		user, err := jwtVerify(token)
+		user, err := jwtVerify(token, jwtKey)
 		if err != nil {
 			return err
 		}

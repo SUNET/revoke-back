@@ -65,13 +65,13 @@ func main() {
 	}
 	defer db.Close()
 
-	jwtPublicKey, err = readJWTPublicKey()
+	jwtKey, err := readJWTPublicKey()
 	if err != nil {
 		log.Fatal(fmt.Errorf("Problem reading JWT public key: %v", err))
 	}
 
 	go func() {
-		http.Handle("/api/v0/noauth", makeGETHandler(db))
+		http.Handle("/api/v0/noauth", makeGETHandler(db, jwtKey))
 		http.Handle("/api/v0/noauth/", makePUTHandler(db))
 		http.Handle("/api/v0/login", makeLoginHandler(db))
 		log.Fatal(http.ListenAndServe("localhost:8888", nil))
