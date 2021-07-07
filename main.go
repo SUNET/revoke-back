@@ -1,7 +1,11 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/x509"
 	"database/sql"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,10 +18,13 @@ import (
 
 var REQUIRED_ENV_VARS = []string{
 	"JWT_URL",
+	"JWT_PUBLIC_KEY",
 	"OCSP_RESPONDER_URL",
 	"PAGE",
 	"PER_PAGE",
 }
+
+var jwtPublicKey *ecdsa.PublicKey
 
 func loadEnv() {
 	godotenv.Overload("default.env", "custom.env")
@@ -31,6 +38,23 @@ func assertEnv(required ...string) {
 	}
 }
 
+func readJWTPublicKey() (*ecdsa.PublicKey, error) {
+	data, err := os.ReadFile(os.Getenv("JWT_PUBLIC_KEY"))
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode([]byte(data))
+	genericKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	if key, ok := genericKey.(*ecdsa.PublicKey); ok {
+		return key, nil
+	}
+	return nil, errors.New("Unexpected type, not ECDSA")
+}
+
 func main() {
 	loadEnv()
 	assertEnv(REQUIRED_ENV_VARS...)
@@ -40,6 +64,11 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	jwtPublicKey, err = readJWTPublicKey()
+	if err != nil {
+		log.Fatal(fmt.Errorf("Problem reading JWT public key: %v", err))
+	}
 
 	go func() {
 		http.Handle("/api/v0/noauth", makeGETHandler(db))

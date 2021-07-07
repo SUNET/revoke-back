@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,9 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
+
+	"github.com/golang-jwt/jwt"
 )
 
 type requestError struct {
@@ -93,12 +97,42 @@ func queryFilter(q url.Values) *filter {
 	return nil
 }
 
+func jwtVerify(tokenString string) (username string, err error) {
+	token, err := jwt.ParseWithClaims(tokenString, new(jwt.StandardClaims), func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+		return jwtPublicKey, nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	claims, ok := token.Claims.(*jwt.StandardClaims)
+	if !ok {
+		return "", errors.New(`JWT: Error reading claims`)
+	}
+	if claims.Subject == "" {
+		return "", requestError{`JWT: "sub" claim missing`}
+	}
+	return claims.Subject, nil
+}
+
 func makeGETHandler(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "GET" {
 			return requestError{"Wrong method"}
 		}
 		w.Header().Set("Access-Control-Expose-Headers", "X-Total-Count")
+
+		auth := r.Header.Get("Authorization")
+		fmt.Println(auth)
+		token := strings.Split(auth, " ")[1]
+		user, err := jwtVerify(token)
+		if err != nil {
+			return err
+		}
+		fmt.Println("User", user)
 
 		q := r.URL.Query()
 

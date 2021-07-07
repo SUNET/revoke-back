@@ -3,6 +3,8 @@
 ### `/api/v0/noauth`
 
 - Method: GET
+- Headers:
+    - Authorization: `Bearer <JWT>`
 - Optional query strings:
     - `filter[subject]=<value>`
     - `per_page=<n>`
@@ -22,6 +24,8 @@ Dates are formatted according to RFC 3339.
 ### `/api/v0/noauth/<serial>`
 
 - Method: PUT
+- Headers:
+    - Authorization: `Bearer <JWT>`
 - Body:
     - `revoke`: boolean
 
