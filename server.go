@@ -24,21 +24,27 @@ func (e requestError) Error() string {
 type errHandler func(w http.ResponseWriter, r *http.Request) error
 
 func (fn errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT")
-	w.Header().Set("Access-Control-Allow-Headers", "Authorization")
-
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
 	if err := fn(w, r); err != nil {
 		if _, ok := err.(requestError); ok {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func headerMiddleware(next errHandler) errHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusNoContent)
+			return nil
+		}
+
+		return next(w, r)
 	}
 }
 
