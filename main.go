@@ -72,9 +72,17 @@ func main() {
 	}
 
 	go func() {
-		http.Handle("/api/v0/noauth", headerMiddleware(authMiddleware(jwtKey, makeGETHandler(db))))
-		http.Handle("/api/v0/noauth/", headerMiddleware(makePUTHandler(db)))
-		http.Handle("/api/v0/login", headerMiddleware(makeLoginHandler(db)))
+		http.Handle("/api/v0/noauth",
+			headerMiddleware(
+				authMiddleware(jwtKey,
+					makeGETHandler(db))))
+		http.Handle("/api/v0/noauth/",
+			headerMiddleware(
+				authMiddleware(jwtKey,
+					makePUTHandler(db))))
+		http.Handle("/api/v0/login",
+			headerMiddleware(
+				makeLoginHandler(db)))
 		log.Fatal(http.ListenAndServe("localhost:8888", nil))
 	}()
 
