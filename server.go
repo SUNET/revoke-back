@@ -53,6 +53,28 @@ func headerMiddleware(next errHandler) errHandler {
 	}
 }
 
+func authMiddleware(jwtKey *ecdsa.PublicKey, next errHandler) errHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		auth := r.Header.Get("Authorization")
+		if auth == "" {
+			return requestError{"Missing Authorization header"}
+		}
+		split := strings.Split(auth, " ")
+		if len(split) < 2 || split[0] != "Bearer" {
+			return requestError{"Malformed Authorization header"}
+		}
+		token := split[1]
+
+		user, err := jwtVerify(token, jwtKey)
+		if err != nil {
+			return err
+		}
+		fmt.Println("User", user)
+
+		return next(w, r)
+	}
+}
+
 func (certs certs) toJSON() ([]byte, error) {
 	json, err := json.Marshal(certs)
 	if err != nil {
@@ -125,28 +147,12 @@ func jwtVerify(tokenString string, key *ecdsa.PublicKey) (username string, err e
 	return claims.Subject, nil
 }
 
-func makeGETHandler(db *sql.DB, jwtKey *ecdsa.PublicKey) errHandler {
+func makeGETHandler(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "GET" {
 			return requestError{"Wrong method"}
 		}
 		w.Header().Set("Access-Control-Expose-Headers", "X-Total-Count")
-
-		auth := r.Header.Get("Authorization")
-		if auth == "" {
-			return requestError{"Missing Authorization header"}
-		}
-		split := strings.Split(auth, " ")
-		if len(split) < 2 || split[0] != "Bearer" {
-			return requestError{"Malformed Authorization header"}
-		}
-		token := split[1]
-
-		user, err := jwtVerify(token, jwtKey)
-		if err != nil {
-			return err
-		}
-		fmt.Println("User", user)
 
 		q := r.URL.Query()
 
