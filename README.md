@@ -1,3 +1,20 @@
+# letsrevoke
+
+## Configuration
+
+The following environment variables are required:
+
+```
+JWT_PUBLIC_KEY
+JWT_URL
+JWT_USER
+OCSP_RESPONDER_URL
+PER_PAGE
+PORT
+```
+
+`PER_PAGE` is set to 50 by default, all others are undefined. You can extend `default.env` or use a new file `custom.env`.
+
 ## API specification
 
 ### `/api/v0/auth`
