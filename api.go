@@ -122,6 +122,9 @@ func apiUpdate(db *sql.DB) errHandler {
 			Revoke bool
 		}{}
 		_, err = readJSON(r.Body, &rBody)
+		if err != nil {
+			return err
+		}
 
 		// Push update to OCSP responder
 		var status revocationResult
