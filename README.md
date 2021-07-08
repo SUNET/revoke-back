@@ -15,6 +15,15 @@ PORT
 
 `PER_PAGE` is set to 50 by default, all others are undefined. You can extend `default.env` or use a new file `custom.env`.
 
+## Limitations
+
+- Currently only one user is supported, configured with `JWT_USER` and `OCSP_RESPONDER_URL`. Multiple users could be supported e.g. by mapping JWT usernames to separate OCSP responder URLs.
+
+Before production:
+
+- Remove ignore of JWT issuing server's certificate
+- Serve HTTPS
+
 ## API specification
 
 ### `/api/v0/auth`
