@@ -34,7 +34,7 @@ func queryPagination(q url.Values) (*pagination, error) {
 	}
 
 	if pageStr == "" {
-		pageStr = os.Getenv("PAGE")
+		pageStr = "1"
 	}
 
 	perPage, err := strconv.Atoi(perPageStr)
