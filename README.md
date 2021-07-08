@@ -1,6 +1,6 @@
 ## API specification
 
-### `/api/v0/noauth`
+### `/api/v0/auth`
 
 - Method: GET
 - Headers:
@@ -21,7 +21,7 @@ Responds with an array of certificates, as specified by query strings or otherwi
 
 Dates are formatted according to RFC 3339.
 
-### `/api/v0/noauth/<serial>`
+### `/api/v0/auth/<serial>`
 
 - Method: PUT
 - Headers:

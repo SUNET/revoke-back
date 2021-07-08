@@ -70,11 +70,11 @@ func main() {
 	}
 
 	go func() {
-		http.Handle("/api/v0/noauth",
+		http.Handle("/api/v0/auth",
 			headerMiddleware(
 				authMiddleware(jwtKey,
 					apiGet(db))))
-		http.Handle("/api/v0/noauth/",
+		http.Handle("/api/v0/auth/",
 			headerMiddleware(
 				authMiddleware(jwtKey,
 					apiUpdate(db))))
