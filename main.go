@@ -85,6 +85,9 @@ func main() {
 		log.Fatal(http.ListenAndServe(fmt.Sprintf("localhost:%s", os.Getenv("PORT")), nil))
 	}()
 
-	exec.Command("reload-localhost").Run() // TODO: For development
-	select {}
+	// TODO: Remove this
+	if os.Getenv("ERNST_DEV") == "1" {
+		exec.Command("reload-localhost").Run()
+		select {}
+	}
 }
