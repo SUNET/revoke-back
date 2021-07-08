@@ -13,7 +13,13 @@ PER_PAGE
 PORT
 ```
 
-`PER_PAGE` is set to 50 by default, all others are undefined. You can extend `default.env` or use a new file `custom.env`.
+For testing, the following are also required:
+
+```
+TEST_OCSP_PORT
+```
+
+You can either edit `default.env`, or use a new file `custom.env` which will override `default.env`.
 
 ## Limitations
 

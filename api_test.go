@@ -14,13 +14,6 @@ import (
 	jsonpath "github.com/steinfletcher/apitest-jsonpath"
 )
 
-const (
-	CA_CERT        = "test-data/ca.pem"
-	RESPONDER_CERT = "test-data/responder.pem"
-	RESPONDER_KEY  = "test-data/responder_key.pem"
-	OCSP_PORT      = 8889
-)
-
 var db *sql.DB
 
 func setup() {
@@ -87,7 +80,7 @@ func setup() {
 
 func TestMain(m *testing.M) {
 	loadEnv()
-	assertEnv("PAGE", "PER_PAGE")
+	assertEnv("TEST_OCSP_PORT")
 
 	var err error
 	db, err = sql.Open("sqlite3", ":memory:") // In-memory database
@@ -100,12 +93,12 @@ func TestMain(m *testing.M) {
 	http.Handle("/init", ocsp.MakeInitHandler(db))
 	http.Handle("/all", ocsp.MakeAllHandler(db))
 
-	err = os.Setenv("OCSP_RESPONDER_URL", fmt.Sprintf("http://localhost:%d", OCSP_PORT))
+	err = os.Setenv("OCSP_RESPONDER_URL", fmt.Sprintf("http://localhost:%s", os.Getenv("TEST_OCSP_PORT")))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", OCSP_PORT))
+	l, err := net.Listen("tcp", fmt.Sprintf(":%s", os.Getenv("TEST_OCSP_PORT")))
 	if err != nil {
 		log.Fatal(err)
 	}
