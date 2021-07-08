@@ -80,7 +80,7 @@ func setup() {
 
 func TestMain(m *testing.M) {
 	loadEnv()
-	assertEnv("TEST_OCSP_PORT")
+	assertEnv("PER_PAGE", "TEST_OCSP_PORT")
 
 	var err error
 	db, err = sql.Open("sqlite3", ":memory:") // In-memory database
