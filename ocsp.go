@@ -9,8 +9,21 @@ import (
 	"time"
 )
 
-// Functions for querying and updating the OCSP responder database
+// Functions for querying and updating the OCSP responder database.
 
+type revocationResult int
+
+const (
+	revoked revocationResult = iota
+	unrevoked
+	unchanged
+)
+
+func (r revocationResult) String() string {
+	return [...]string{"revoked", "unrevoked", "unchanged"}[r]
+}
+
+// Get a map of all certs in OCSP database.
 func readOCSP() (map[int64]*cert, error) {
 	resp, err := http.Get(os.Getenv("OCSP_RESPONDER_URL") + "/all")
 	if err != nil {
@@ -26,6 +39,7 @@ func readOCSP() (map[int64]*cert, error) {
 	return body, nil
 }
 
+// Update the OCSP database, setting the specified cert's revocation time.
 func update(serial int64, revoked time.Time) error {
 	body, err := json.Marshal(struct {
 		Serial  int64
@@ -48,18 +62,6 @@ func update(serial int64, revoked time.Time) error {
 	defer resp.Body.Close()
 
 	return nil
-}
-
-type revocationResult int
-
-const (
-	revoked revocationResult = iota
-	unrevoked
-	unchanged
-)
-
-func (r revocationResult) String() string {
-	return [...]string{"revoked", "unrevoked", "unchanged"}[r]
 }
 
 // Attempt a revocation. Do not change anything if c is already revoked.

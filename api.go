@@ -5,50 +5,14 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"strconv"
 	"strings"
-
-	"github.com/golang-jwt/jwt"
 )
-
-type requestError string
-type authError string
-
-func (e requestError) Error() string {
-	if e == "" {
-		return "Bad request"
-	}
-	return fmt.Sprintf("Bad request: %s", string(e))
-}
-
-func (e authError) Error() string {
-	if e == "" {
-		return "Authorization error"
-	}
-	return fmt.Sprintf("Authorization error: %s", string(e))
-}
-
-type errHandler func(w http.ResponseWriter, r *http.Request) error
-
-func (fn errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if err := fn(w, r); err != nil {
-		switch err.(type) {
-		case authError:
-			http.Error(w, err.Error(), http.StatusUnauthorized)
-		case requestError:
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		default:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	}
-}
 
 func headerMiddleware(next errHandler) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
@@ -90,79 +54,7 @@ func authMiddleware(jwtKey *ecdsa.PublicKey, next errHandler) errHandler {
 	}
 }
 
-func (certs certs) toJSON() ([]byte, error) {
-	json, err := json.Marshal(certs)
-	if err != nil {
-		return nil, err
-	}
-	return json, nil
-}
-
-// Read per_page and page query strings from q
-func queryPagination(q url.Values) (*pagination, error) {
-	perPageStr := q.Get("per_page")
-	pageStr := q.Get("page")
-
-	if perPageStr == "" && pageStr == "" {
-		return nil, nil
-	}
-
-	if perPageStr == "" {
-		perPageStr = os.Getenv("PER_PAGE")
-	}
-
-	if pageStr == "" {
-		pageStr = os.Getenv("PAGE")
-	}
-
-	perPage, err := strconv.Atoi(perPageStr)
-	if err != nil {
-		return nil, err
-	}
-
-	page, err := strconv.Atoi(pageStr)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pagination{perPage, page}, nil
-}
-
-// Read filter query string from q
-func queryFilter(q url.Values) *filter {
-	filterFields := map[string]string{
-		"subject": "sub",
-	}
-	for apiKey, dbKey := range filterFields {
-		if v := q.Get(fmt.Sprintf("filter[%s]", apiKey)); v != "" {
-			return &filter{dbKey, v}
-		}
-	}
-	return nil
-}
-
-func jwtVerify(tokenString string, key *ecdsa.PublicKey) (username string, err error) {
-	token, err := jwt.ParseWithClaims(tokenString, new(jwt.StandardClaims), func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
-		return key, nil
-	})
-	if err != nil {
-		return "", err
-	}
-
-	claims, ok := token.Claims.(*jwt.StandardClaims)
-	if !ok {
-		return "", errors.New(`JWT: Error reading claims`)
-	}
-	if claims.Subject == "" {
-		return "", requestError(`JWT: "sub" claim missing`)
-	}
-	return claims.Subject, nil
-}
-
-func makeGETHandler(db *sql.DB) errHandler {
+func apiGet(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "GET" {
 			return requestError("Wrong method")
@@ -213,22 +105,7 @@ func makeGETHandler(db *sql.DB) errHandler {
 	}
 }
 
-// Read JSON from rc, populate struct pointed to by data
-func readJSON(rc io.ReadCloser, data interface{}) (interface{}, error) {
-	jsonData, err := io.ReadAll(rc)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(jsonData, data)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
-}
-
-func makePUTHandler(db *sql.DB) errHandler {
+func apiUpdate(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "PUT" {
 			return requestError("Wrong method")
@@ -270,8 +147,8 @@ func makePUTHandler(db *sql.DB) errHandler {
 	}
 }
 
-// Forwards a request to JWT issuer
-func makeLoginHandler(db *sql.DB) errHandler {
+// Forwards a request to JWT issuer.
+func apiLogin(db *sql.DB) errHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "POST" {
 			return requestError("Wrong method")

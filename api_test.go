@@ -120,7 +120,7 @@ func TestMain(m *testing.M) {
 func TestGET(t *testing.T) {
 	setup()
 	apitest.New().
-		Handler(makeGETHandler(db)).
+		Handler(apiGet(db)).
 		Get("/api/v0/noauth").
 		Expect(t).
 		Body(`[
@@ -149,7 +149,7 @@ func TestPUT(t *testing.T) {
 	setup()
 	t.Run("Revoke #1", func(t *testing.T) {
 		apitest.New().
-			Handler(makePUTHandler(db)).
+			Handler(apiUpdate(db)).
 			Put("/api/v0/noauth/1").
 			Body(`{ "revoke": true }`).
 			Expect(t).
@@ -158,7 +158,7 @@ func TestPUT(t *testing.T) {
 	})
 	t.Run("Confirm #1 is revoked", func(r *testing.T) {
 		apitest.New().
-			Handler(makeGETHandler(db)).
+			Handler(apiGet(db)).
 			Get("/api/v0/noauth").
 			Expect(t).
 			Assert(jsonpath.NotEqual("$[0].revoked", nil)).
@@ -167,7 +167,7 @@ func TestPUT(t *testing.T) {
 	})
 	t.Run("Unrevoke #1", func(t *testing.T) {
 		apitest.New().
-			Handler(makePUTHandler(db)).
+			Handler(apiUpdate(db)).
 			Put("/api/v0/noauth/1").
 			Body(`{ "revoke": false }`).
 			Expect(t).
@@ -176,7 +176,7 @@ func TestPUT(t *testing.T) {
 	})
 	t.Run("Confirm #1 is unrevoked", func(r *testing.T) {
 		apitest.New().
-			Handler(makeGETHandler(db)).
+			Handler(apiGet(db)).
 			Get("/api/v0/noauth").
 			Expect(t).
 			Assert(jsonpath.Equal("$[0].revoked", nil)).
@@ -188,7 +188,7 @@ func TestPUT(t *testing.T) {
 func TestGETFilterSubject(t *testing.T) {
 	setup()
 	apitest.New().
-		Handler(makeGETHandler(db)).
+		Handler(apiGet(db)).
 		Get("/api/v0/noauth").
 		Query("filter[subject]", "1").
 		Expect(t).

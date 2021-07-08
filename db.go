@@ -11,27 +11,6 @@ const (
 	layoutOSSL = "060102150405Z"
 )
 
-type cert struct {
-	Serial    int64      `json:"serial"`
-	Requester string     `json:"requester"`
-	Subject   string     `json:"subject"`
-	Issued    time.Time  `json:"issued"`
-	Expires   time.Time  `json:"expires"`
-	Revoked   *time.Time `json:"revoked"`
-}
-
-type certs []*cert
-
-type filter struct {
-	field string
-	value string
-}
-
-type pagination struct {
-	perPage int
-	page    int
-}
-
 // Produce a "WHERE X CONTAINS ?" clause (actually: WHERE instr(X, ?) > 0)
 // NOTE:
 // - Caller is responsible for sanitation of f.field

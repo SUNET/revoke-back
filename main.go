@@ -25,8 +25,6 @@ var REQUIRED_ENV_VARS = []string{
 	"PER_PAGE",
 }
 
-var jwtPublicKey *ecdsa.PublicKey
-
 func loadEnv() {
 	godotenv.Overload("default.env", "custom.env")
 }
@@ -75,14 +73,14 @@ func main() {
 		http.Handle("/api/v0/noauth",
 			headerMiddleware(
 				authMiddleware(jwtKey,
-					makeGETHandler(db))))
+					apiGet(db))))
 		http.Handle("/api/v0/noauth/",
 			headerMiddleware(
 				authMiddleware(jwtKey,
-					makePUTHandler(db))))
+					apiUpdate(db))))
 		http.Handle("/api/v0/login",
 			headerMiddleware(
-				makeLoginHandler(db)))
+				apiLogin(db)))
 		log.Fatal(http.ListenAndServe("localhost:8888", nil))
 	}()
 
