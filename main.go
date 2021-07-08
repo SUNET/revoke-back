@@ -17,12 +17,13 @@ import (
 )
 
 var REQUIRED_ENV_VARS = []string{
-	"JWT_URL",
 	"JWT_PUBLIC_KEY",
+	"JWT_URL",
 	"JWT_USER",
 	"OCSP_RESPONDER_URL",
 	"PAGE",
 	"PER_PAGE",
+	"PORT",
 }
 
 func loadEnv() {
@@ -81,7 +82,7 @@ func main() {
 		http.Handle("/api/v0/login",
 			headerMiddleware(
 				apiLogin(db)))
-		log.Fatal(http.ListenAndServe("localhost:8888", nil))
+		log.Fatal(http.ListenAndServe(fmt.Sprintf("localhost:%s", os.Getenv("PORT")), nil))
 	}()
 
 	exec.Command("reload-localhost").Run() // TODO: For development
