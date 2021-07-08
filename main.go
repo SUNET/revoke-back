@@ -27,7 +27,8 @@ var REQUIRED_ENV_VARS = []string{
 }
 
 func loadEnv() {
-	godotenv.Overload("default.env", "custom.env")
+	godotenv.Load("default.env")
+	godotenv.Overload("custom.env")
 }
 
 func assertEnv(required ...string) {
