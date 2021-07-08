@@ -1,4 +1,4 @@
 letswifi-dev.sqlite
-test-data
 custom.env
 *.pem
+certs
