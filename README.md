@@ -19,16 +19,9 @@ For testing, the following are also required:
 TEST_OCSP_PORT
 ```
 
-You can either edit `default.env`, or use a new file `custom.env` which will override `default.env`.
-
 ## Limitations
 
 - Currently only one user is supported, configured with `JWT_USER` and `OCSP_URL`. Multiple users could be supported e.g. by mapping JWT usernames to separate OCSP responder URLs.
-
-Before production:
-
-- Remove ignore of JWT issuing server's certificate
-- Serve HTTPS
 
 ## API specification
 
