@@ -55,7 +55,7 @@ func readSigningLog(db *sql.DB, f *filter, p *pagination) (certs, error) {
 	}
 	defer rows.Close()
 
-	var res []*cert
+	res := make([]*cert, 0)
 	for rows.Next() {
 		var serial int64
 		var requester, subject string

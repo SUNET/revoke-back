@@ -112,30 +112,61 @@ func TestMain(m *testing.M) {
 
 func TestGET(t *testing.T) {
 	setup()
-	apitest.New().
-		Handler(apiGet(db)).
-		Get("/api/v0/noauth").
-		Expect(t).
-		Body(`[
-			{
-				"serial": 1,
-				"requester": "requester_1",
-				"subject": "sub_1",
-				"issued": "2020-06-23T00:00:00Z",
-				"expires": "2021-06-23T00:00:00Z",
-				"revoked": null
-			},
-			{
-				"serial": 2,
-				"requester": "requester_2",
-				"subject": "sub_2",
-				"issued": "2020-06-23T00:00:00Z",
-				"expires": "2022-06-23T00:00:00Z",
-				"revoked": "2019-10-12T07:20:50Z"
-			}
-		]`).
-		Status(http.StatusOK).
-		End()
+	t.Run("No query strings", func(r *testing.T) {
+		apitest.New().
+			Handler(apiGet(db)).
+			Get("/api/v0/noauth").
+			Expect(t).
+			Body(`[
+				{
+					"serial": 1,
+					"requester": "requester_1",
+					"subject": "sub_1",
+					"issued": "2020-06-23T00:00:00Z",
+					"expires": "2021-06-23T00:00:00Z",
+					"revoked": null
+				},
+				{
+					"serial": 2,
+					"requester": "requester_2",
+					"subject": "sub_2",
+					"issued": "2020-06-23T00:00:00Z",
+					"expires": "2022-06-23T00:00:00Z",
+					"revoked": "2019-10-12T07:20:50Z"
+				}
+			]`).
+			Status(http.StatusOK).
+			End()
+	})
+	t.Run("Filter by subject", func(r *testing.T) {
+		apitest.New().
+			Handler(apiGet(db)).
+			Get("/api/v0/noauth").
+			Query("filter[subject]", "1").
+			Expect(t).
+			Body(`[
+				{
+					"serial": 1,
+					"requester": "requester_1",
+					"subject": "sub_1",
+					"issued": "2020-06-23T00:00:00Z",
+					"expires": "2021-06-23T00:00:00Z",
+					"revoked": null
+				}
+			]`).
+			Status(http.StatusOK).
+			End()
+	})
+	t.Run("Empty results", func(r *testing.T) {
+		apitest.New().
+			Handler(apiGet(db)).
+			Get("/api/v0/noauth").
+			Query("filter[subject]", "xyz").
+			Expect(t).
+			Body(`[]`).
+			Status(http.StatusOK).
+			End()
+	})
 }
 
 func TestPUT(t *testing.T) {
@@ -176,25 +207,4 @@ func TestPUT(t *testing.T) {
 			Status(http.StatusOK).
 			End()
 	})
-}
-
-func TestGETFilterSubject(t *testing.T) {
-	setup()
-	apitest.New().
-		Handler(apiGet(db)).
-		Get("/api/v0/noauth").
-		Query("filter[subject]", "1").
-		Expect(t).
-		Body(`[
-			{
-				"serial": 1,
-				"requester": "requester_1",
-				"subject": "sub_1",
-				"issued": "2020-06-23T00:00:00Z",
-				"expires": "2021-06-23T00:00:00Z",
-				"revoked": null
-			}
-		]`).
-		Status(http.StatusOK).
-		End()
 }
