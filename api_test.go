@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ernstwi/ocsp-responder/ocsp"
+	"github.com/ernstwi/revoke-ocsp/ocsp"
 	"github.com/steinfletcher/apitest"
 	jsonpath "github.com/steinfletcher/apitest-jsonpath"
 )

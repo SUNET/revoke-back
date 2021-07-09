@@ -3,7 +3,7 @@ module github.com/ernstwi/revoke-back
 go 1.16
 
 require (
-	github.com/ernstwi/ocsp-responder v0.0.0-20210702083357-d98723233ebd
+	github.com/ernstwi/revoke-ocsp v0.0.0-20210709082518-55601015225a
 	github.com/golang-jwt/jwt v3.2.1+incompatible
 	github.com/joho/godotenv v1.3.0
 	github.com/mattn/go-sqlite3 v1.14.7
