@@ -8,7 +8,7 @@ The following environment variables are required:
 JWT_PUBLIC_KEY
 JWT_URL
 JWT_USER
-OCSP_RESPONDER_URL
+OCSP_URL
 PER_PAGE
 PORT
 ```
@@ -23,7 +23,7 @@ You can either edit `default.env`, or use a new file `custom.env` which will ove
 
 ## Limitations
 
-- Currently only one user is supported, configured with `JWT_USER` and `OCSP_RESPONDER_URL`. Multiple users could be supported e.g. by mapping JWT usernames to separate OCSP responder URLs.
+- Currently only one user is supported, configured with `JWT_USER` and `OCSP_URL`. Multiple users could be supported e.g. by mapping JWT usernames to separate OCSP responder URLs.
 
 Before production:
 

@@ -93,7 +93,7 @@ func TestMain(m *testing.M) {
 	http.Handle("/init", ocsp.MakeInitHandler(db))
 	http.Handle("/all", ocsp.MakeAllHandler(db))
 
-	err = os.Setenv("OCSP_RESPONDER_URL", fmt.Sprintf("http://localhost:%s", os.Getenv("TEST_OCSP_PORT")))
+	err = os.Setenv("OCSP_URL", fmt.Sprintf("http://localhost:%s", os.Getenv("TEST_OCSP_PORT")))
 	if err != nil {
 		log.Fatal(err)
 	}

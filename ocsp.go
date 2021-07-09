@@ -25,7 +25,7 @@ func (r revocationResult) String() string {
 
 // Get a map of all certs in OCSP database.
 func readOCSP() (map[int64]*cert, error) {
-	resp, err := http.Get(os.Getenv("OCSP_RESPONDER_URL") + "/all")
+	resp, err := http.Get(os.Getenv("OCSP_URL") + "/all")
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func update(serial int64, revoked time.Time) error {
 		return err
 	}
 
-	req, err := http.NewRequest("PUT", os.Getenv("OCSP_RESPONDER_URL")+"/update", bytes.NewReader(body))
+	req, err := http.NewRequest("PUT", os.Getenv("OCSP_URL")+"/update", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}

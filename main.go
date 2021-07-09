@@ -20,7 +20,7 @@ var REQUIRED_ENV_VARS = []string{
 	"JWT_PUBLIC_KEY",
 	"JWT_URL",
 	"JWT_USER",
-	"OCSP_RESPONDER_URL",
+	"OCSP_URL",
 	"PER_PAGE",
 	"PORT",
 }
