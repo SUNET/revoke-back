@@ -82,7 +82,7 @@ func main() {
 		http.Handle("/api/v0/login",
 			headerMiddleware(
 				apiLogin(db)))
-		log.Fatal(http.ListenAndServe(fmt.Sprintf("localhost:%s", os.Getenv("PORT")), nil))
+		log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
 	}()
 
 	// TODO: Remove this
