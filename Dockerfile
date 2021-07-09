@@ -8,4 +8,4 @@ RUN go install -v ./...
 
 EXPOSE 8001
 
-CMD ["letsrevoke"]
+CMD ["revoke-back"]

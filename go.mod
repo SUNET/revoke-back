@@ -1,4 +1,4 @@
-module github.com/ernstwi/letsrevoke
+module github.com/ernstwi/revoke-back
 
 go 1.16
 
