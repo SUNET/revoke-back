@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/ecdsa"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -162,7 +163,11 @@ func apiLogin(db *sql.DB) errHandler {
 		}
 		jwtReq.Header.Set("Authorization", r.Header.Get("Authorization"))
 
-		jwtResp, err := http.DefaultClient.Do(jwtReq)
+		// TODO: JWT dev server's certificate is not valid
+		tr := http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+		client := http.Client{Transport: &tr}
+
+		jwtResp, err := client.Do(jwtReq)
 		if err != nil {
 			return err
 		}
