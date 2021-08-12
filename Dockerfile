@@ -2,10 +2,10 @@ FROM golang:1.16
 
 WORKDIR /usr/src/app
 
-COPY go.* .
+COPY go.* ./
 RUN go mod download
 
-COPY . .
+COPY . ./
 RUN go install -v ./...
 
 EXPOSE 8001
