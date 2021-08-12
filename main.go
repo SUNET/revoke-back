@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
@@ -70,21 +69,13 @@ func main() {
 		log.Fatal(fmt.Errorf("Problem reading JWT public key: %v", err))
 	}
 
-	go func() {
-		http.Handle("/api/v0/auth",
-			headerMiddleware(
-				authMiddleware(jwtKey,
-					apiGet(db))))
-		http.Handle("/api/v0/auth/",
-			headerMiddleware(
-				authMiddleware(jwtKey,
-					apiUpdate(db))))
-		log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
-	}()
-
-	// TODO: Remove this
-	if os.Getenv("ERNST_DEV") == "1" {
-		exec.Command("reload-localhost").Run()
-		select {}
-	}
+	http.Handle("/api/v0/auth",
+		headerMiddleware(
+			authMiddleware(jwtKey,
+				apiGet(db))))
+	http.Handle("/api/v0/auth/",
+		headerMiddleware(
+			authMiddleware(jwtKey,
+				apiUpdate(db))))
+	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
 }
