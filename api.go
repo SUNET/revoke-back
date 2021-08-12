@@ -2,11 +2,9 @@ package main
 
 import (
 	"crypto/ecdsa"
-	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path"
@@ -147,45 +145,5 @@ func apiUpdate(db *sql.DB) errHandler {
 		w.Header().Set("Content-Type", "application/json")
 		_, err = w.Write(json)
 		return err
-	}
-}
-
-// Forwards a request to JWT issuer.
-func apiLogin(db *sql.DB) errHandler {
-	return func(w http.ResponseWriter, r *http.Request) error {
-		if r.Method != "POST" {
-			return requestError("Wrong method")
-		}
-
-		jwtReq, err := http.NewRequest("POST", os.Getenv("JWT_URL"), nil)
-		if err != nil {
-			return err
-		}
-		jwtReq.Header.Set("Authorization", r.Header.Get("Authorization"))
-
-		// TODO: JWT dev server's certificate is not valid
-		tr := http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
-		client := http.Client{Transport: &tr}
-
-		jwtResp, err := client.Do(jwtReq)
-		if err != nil {
-			return err
-		}
-		defer jwtResp.Body.Close()
-
-		switch jwtResp.StatusCode {
-		case http.StatusUnauthorized:
-			return authError("Unrecognized username or password")
-		case http.StatusOK:
-			json, err := io.ReadAll(jwtResp.Body)
-			if err != nil {
-				return err
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_, err = w.Write(json)
-			return err
-		default:
-			return fmt.Errorf("JWT server error: %v", jwtResp.Status)
-		}
 	}
 }

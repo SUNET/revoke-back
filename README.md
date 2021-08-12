@@ -59,11 +59,3 @@ Revoke or unrevoke cert `<serial>`. Responds with a JSON body consisting of:
 - `<serial>`: *status*
 
 where *status* is "revoked", "unrevoked", or "unchanged".
-
-### `/api/v0/login`
-
-- Method: POST
-- Headers:
-    - Authorization: `Basic <Base64-encoded "user:password">`
-
-Responds with a JSON object composed of one string-valued key `access_token`.

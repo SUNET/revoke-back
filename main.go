@@ -79,9 +79,6 @@ func main() {
 			headerMiddleware(
 				authMiddleware(jwtKey,
 					apiUpdate(db))))
-		http.Handle("/api/v0/login",
-			headerMiddleware(
-				apiLogin(db)))
 		log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
 	}()
 
